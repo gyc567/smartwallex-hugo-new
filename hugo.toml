@@ -1,11 +1,11 @@
 baseURL = 'https://example.org/'
 languageCode = 'zh-cn'
-title = '我的博客网站'
+title = 'SmartWallex - 加密货币聪明钱信息聚合平台'
 
 [params]
-  description = "一个功能完整的Hugo博客网站"
-  author = "博主姓名"
-  keywords = ["博客", "技术", "分享"]
+  description = "专业的加密货币聪明钱信息聚合平台，提供GitHub项目分析、市场洞察和投资建议"
+  author = "ERIC - 区块链专家"
+  keywords = ["SmartWallex", "加密货币", "聪明钱", "区块链", "GitHub项目分析", "投资洞察", "DeFi", "比特币", "以太坊"]
   
   # SEO设置
   enableRobotsTXT = true
