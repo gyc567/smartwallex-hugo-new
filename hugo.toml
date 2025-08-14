@@ -1,0 +1,39 @@
+baseURL = 'https://example.org/'
+languageCode = 'zh-cn'
+title = '我的博客网站'
+
+[params]
+  description = "一个功能完整的Hugo博客网站"
+  author = "博主姓名"
+  keywords = ["博客", "技术", "分享"]
+  
+  # SEO设置
+  enableRobotsTXT = true
+  enableGitInfo = true
+  
+  # 搜索功能
+  enableSearch = true
+  
+  # 点赞功能
+  enableLikes = true
+  
+  # Monetag广告设置
+  monetag = true
+  monetagId = "YOUR_MONETAG_ID"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    style = "github"
+    lineNos = true
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+  page = ["HTML"]
+  section = ["HTML", "RSS"]
+
+[sitemap]
+  changefreq = "weekly"
+  priority = 0.5

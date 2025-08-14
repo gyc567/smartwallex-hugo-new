@@ -1,0 +1,63 @@
+{{ define "main" }}
+<div class="list-container">
+    <header class="list-header">
+        <h1>{{ .Title }}</h1>
+        {{ if .Content }}
+        <div class="list-description">{{ .Content }}</div>
+        {{ end }}
+    </header>
+    
+    <!-- Monetag列表页广告 -->
+    {{ if .Site.Params.monetag }}
+    <div class="ad-container list-ad">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
+             data-ad-slot="LIST_AD_SLOT"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+    {{ end }}
+    
+    <div class="posts-list">
+        {{ range .Paginator.Pages }}
+        <article class="post-item">
+            <h2><a href="{{ .Permalink }}">{{ .Title }}</a></h2>
+            <div class="post-meta">
+                {{ if .Date }}
+                <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006年01月02日" }}</time>
+                {{ end }}
+                <span class="reading-time">{{ .ReadingTime }}分钟阅读</span>
+                {{ with .File }}
+                <div class="post-likes" data-post="{{ .UniqueID }}">
+                    <button class="like-btn" onclick="toggleLike('{{ .UniqueID }}')">
+                        ❤️ <span class="like-count">0</span>
+                    </button>
+                </div>
+                {{ else }}
+                <div class="post-likes" data-post="{{ .RelPermalink | md5 }}">
+                    <button class="like-btn" onclick="toggleLike('{{ .RelPermalink | md5 }}')">
+                        ❤️ <span class="like-count">0</span>
+                    </button>
+                </div>
+                {{ end }}
+            </div>
+            <div class="post-summary">{{ .Summary }}</div>
+            {{ if .Params.tags }}
+            <div class="post-tags">
+                {{ range .Params.tags }}
+                <span class="tag">#{{ . }}</span>
+                {{ end }}
+            </div>
+            {{ end }}
+        </article>
+        {{ end }}
+    </div>
+    
+    <!-- 分页 -->
+    {{ template "_internal/pagination.html" . }}
+</div>
+{{ end }}

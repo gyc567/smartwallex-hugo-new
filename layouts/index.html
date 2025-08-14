@@ -1,0 +1,62 @@
+{{ define "main" }}
+<div class="home-container">
+    <section class="hero-section">
+        <h1>欢迎来到{{ .Site.Title }}</h1>
+        <p>{{ .Site.Params.description }}</p>
+        
+        <!-- Monetag横幅广告 -->
+        {{ if .Site.Params.monetag }}
+        <div class="ad-container hero-ad">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
+                 data-ad-slot="HERO_AD_SLOT"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
+        {{ end }}
+    </section>
+    
+    <section class="posts-section">
+        <h2>最新文章</h2>
+        <div class="posts-grid">
+            {{ range first 6 (where .Site.RegularPages "Type" "posts") }}
+            <article class="post-card">
+                <h3><a href="{{ .Permalink }}">{{ .Title }}</a></h3>
+                <div class="post-meta">
+                    {{ if .Date }}
+                    <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006年01月02日" }}</time>
+                    {{ end }}
+                    {{ with .File }}
+                    <span class="post-likes" data-post="{{ .UniqueID }}">
+                        <button class="like-btn" onclick="toggleLike('{{ .UniqueID }}')">
+                            ❤️ <span class="like-count">0</span>
+                        </button>
+                    </span>
+                    {{ else }}
+                    <span class="post-likes" data-post="{{ .RelPermalink | md5 }}">
+                        <button class="like-btn" onclick="toggleLike('{{ .RelPermalink | md5 }}')">
+                            ❤️ <span class="like-count">0</span>
+                        </button>
+                    </span>
+                    {{ end }}
+                </div>
+                <p>{{ .Summary }}</p>
+                <div class="post-tags">
+                    {{ range .Params.tags }}
+                    <span class="tag">#{{ . }}</span>
+                    {{ end }}
+                </div>
+            </article>
+            {{ end }}
+        </div>
+        
+        <div class="view-all">
+            <a href="/posts/" class="btn">查看所有文章</a>
+        </div>
+    </section>
+</div>
+{{ end }}

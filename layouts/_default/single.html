@@ -1,0 +1,95 @@
+{{ define "main" }}
+<article class="post-single">
+    <header class="post-header">
+        <h1>{{ .Title }}</h1>
+        <div class="post-meta">
+            {{ if .Date }}
+            <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006年01月02日" }}</time>
+            {{ end }}
+            <span class="reading-time">阅读时间: {{ .ReadingTime }}分钟</span>
+            {{ with .File }}
+            <div class="post-likes" data-post="{{ .UniqueID }}">
+                <button class="like-btn" onclick="toggleLike('{{ .UniqueID }}')">
+                    ❤️ <span class="like-count">0</span>
+                </button>
+            </div>
+            {{ else }}
+            <div class="post-likes" data-post="{{ .RelPermalink | md5 }}">
+                <button class="like-btn" onclick="toggleLike('{{ .RelPermalink | md5 }}')">
+                    ❤️ <span class="like-count">0</span>
+                </button>
+            </div>
+            {{ end }}
+        </div>
+        
+        {{ if .Params.tags }}
+        <div class="post-tags">
+            {{ range .Params.tags }}
+            <span class="tag">#{{ . }}</span>
+            {{ end }}
+        </div>
+        {{ end }}
+    </header>
+    
+    <!-- Monetag文章顶部广告 -->
+    {{ if .Site.Params.monetag }}
+    <div class="ad-container article-top-ad">
+        <ins class="adsbygoogle"
+             style="display:block; text-align:center;"
+             data-ad-layout="in-article"
+             data-ad-format="fluid"
+             data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
+             data-ad-slot="ARTICLE_TOP_AD_SLOT"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+    {{ end }}
+    
+    <div class="post-content">
+        {{ .Content }}
+    </div>
+    
+    <!-- Monetag文章底部广告 -->
+    {{ if .Site.Params.monetag }}
+    <div class="ad-container article-bottom-ad">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
+             data-ad-slot="ARTICLE_BOTTOM_AD_SLOT"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
+    {{ end }}
+    
+    <footer class="post-footer">
+        <div class="post-nav">
+            {{ with .PrevInSection }}
+            <a href="{{ .Permalink }}" class="prev-post">← {{ .Title }}</a>
+            {{ end }}
+            {{ with .NextInSection }}
+            <a href="{{ .Permalink }}" class="next-post">{{ .Title }} →</a>
+            {{ end }}
+        </div>
+    </footer>
+</article>
+
+<!-- 相关文章 -->
+{{ $related := .Site.RegularPages.Related . | first 3 }}
+{{ if $related }}
+<section class="related-posts">
+    <h3>相关文章</h3>
+    <div class="related-grid">
+        {{ range $related }}
+        <article class="related-post">
+            <h4><a href="{{ .Permalink }}">{{ .Title }}</a></h4>
+            {{ if .Date }}<time>{{ .Date.Format "2006年01月02日" }}</time>{{ end }}
+        </article>
+        {{ end }}
+    </div>
+</section>
+{{ end }}
+{{ end }}
