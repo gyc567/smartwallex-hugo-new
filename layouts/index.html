@@ -2,7 +2,7 @@
 <div class="home-container">
     <section class="hero-section">
         <h1>欢迎来到{{ .Site.Title }}</h1>
-        <p>{{ .Site.Params.description }}</p>
+        {{ if .Site.Params.description }}<p>{{ .Site.Params.description }}</p>{{ end }}
         
         <!-- Monetag横幅广告 -->
         {{ if .Site.Params.monetag }}

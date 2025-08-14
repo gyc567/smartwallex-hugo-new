@@ -6,20 +6,28 @@
     
     <!-- SEO Meta Tags -->
     <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} - {{ .Site.Title }}{{ end }}</title>
-    <meta name="description" content="{{ if .Description }}{{ .Description }}{{ else }}{{ .Site.Params.description }}{{ end }}">
-    <meta name="keywords" content="{{ if .Params.tags }}{{ delimit .Params.tags ", " }}{{ else }}{{ delimit .Site.Params.keywords ", " }}{{ end }}">
-    <meta name="author" content="{{ .Site.Params.author }}">
+    <meta name="description" content="{{ if .Description }}{{ .Description }}{{ else if .Site.Params.description }}{{ .Site.Params.description }}{{ end }}">
+    {{ $keywords := "" }}
+    {{ if .Params.tags }}
+        {{ $keywords = delimit .Params.tags ", " }}
+    {{ else if .Site.Params.keywords }}
+        {{ $keywords = delimit .Site.Params.keywords ", " }}
+    {{ end }}
+    {{ if $keywords }}
+    <meta name="keywords" content="{{ $keywords }}">
+    {{ end }}
+    {{ if .Site.Params.author }}<meta name="author" content="{{ .Site.Params.author }}">{{ end }}
     
     <!-- Open Graph -->
     <meta property="og:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }}{{ end }}">
-    <meta property="og:description" content="{{ if .Description }}{{ .Description }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+    <meta property="og:description" content="{{ if .Description }}{{ .Description }}{{ else if .Site.Params.description }}{{ .Site.Params.description }}{{ end }}">
     <meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
     <meta property="og:url" content="{{ .Permalink }}">
     
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }}{{ end }}">
-    <meta name="twitter:description" content="{{ if .Description }}{{ .Description }}{{ else }}{{ .Site.Params.description }}{{ end }}">
+    <meta name="twitter:description" content="{{ if .Description }}{{ .Description }}{{ else if .Site.Params.description }}{{ .Site.Params.description }}{{ end }}">
     
     <!-- Canonical URL -->
     <link rel="canonical" href="{{ .Permalink }}">
