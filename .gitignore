@@ -29,6 +29,13 @@ automation/logs/*.log
 # Environment variables
 automation/.env
 
+# Python cache files
+scripts/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
 # Temporary files
 *.tmp
 *.temp
