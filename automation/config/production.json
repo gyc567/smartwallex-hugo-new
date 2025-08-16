@@ -1,0 +1,58 @@
+{
+  "twitter": {
+    "maxResults": 100,
+    "rateLimits": {
+      "searchRequests": 300,
+      "windowMinutes": 15,
+      "enableBackoff": true
+    }
+  },
+  "content": {
+    "topTweetsCount": 3,
+    "minRetweetCount": 50,
+    "minCharacterCount": 100,
+    "qualityFilters": {
+      "enableSpamDetection": true,
+      "minFollowerCount": 100,
+      "excludeRetweets": false
+    }
+  },
+  "hugo": {
+    "buildCommand": "hugo --minify --gc --cleanDestinationDir",
+    "enableOptimization": true,
+    "compressionLevel": 9
+  },
+  "logging": {
+    "level": "INFO",
+    "enableFile": true,
+    "enableConsole": false,
+    "format": "json",
+    "includeStackTrace": false
+  },
+  "notifications": {
+    "enabled": true,
+    "channels": ["email", "slack"],
+    "onSuccess": false,
+    "onError": true,
+    "onWarning": false
+  },
+  "errorHandling": {
+    "maxRetries": 5,
+    "baseDelay": 2000,
+    "maxDelay": 60000,
+    "enableRecovery": true,
+    "criticalErrorThreshold": 3,
+    "enableFailsafe": true
+  },
+  "performance": {
+    "enableCaching": true,
+    "cacheTimeout": 300000,
+    "enableCompression": true,
+    "maxConcurrentRequests": 5
+  },
+  "security": {
+    "enableInputValidation": true,
+    "sanitizeContent": true,
+    "enableRateLimiting": true
+  }
+}

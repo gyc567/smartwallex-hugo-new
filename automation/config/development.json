@@ -1,0 +1,15 @@
+{
+  "twitter": {
+    "maxResults": 10
+  },
+  "content": {
+    "topTweetsCount": 1,
+    "minRetweetCount": 1
+  },
+  "hugo": {
+    "buildCommand": "hugo -D --gc"
+  },
+  "logging": {
+    "level": "debug"
+  }
+}

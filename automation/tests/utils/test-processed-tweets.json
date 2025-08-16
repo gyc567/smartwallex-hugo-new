@@ -1,0 +1,12 @@
+{
+  "processedTweets": [
+    {
+      "tweetId": "2",
+      "contentHash": "recent_hash",
+      "processedDate": "2025-08-09T09:22:06.157Z",
+      "filename": "recent.md"
+    }
+  ],
+  "lastUpdated": "2025-08-14T09:22:06.851Z",
+  "version": "1.0.0"
+}

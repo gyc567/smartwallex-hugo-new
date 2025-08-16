@@ -1,0 +1,49 @@
+{
+  "name": "twitter-crypto-content-automation",
+  "version": "1.0.0",
+  "description": "Automated system to discover trending cryptocurrency content on Twitter and publish as Hugo blog posts",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "test:integration": "node --experimental-vm-modules node_modules/.bin/jest tests/integration/",
+    "dev": "node --watch src/index.js",
+    "demo": "node examples/main-workflow-demo.js",
+    "demo:full": "node examples/main-workflow-demo.js full",
+    "demo:mock": "node examples/main-workflow-demo.js mock",
+    "demo:components": "node examples/main-workflow-demo.js components",
+    "demo:config": "node examples/main-workflow-demo.js config",
+    "validate": "node -e \"import ConfigLoader from './src/config/ConfigLoader.js'; const config = new ConfigLoader(); await config.load(); console.log(config.getValidationReport());\"",
+    "validate:secrets": "node ../.github/scripts/setup-secrets.js validate",
+    "validate:setup": "node scripts/validate-setup.js",
+    "setup:secrets": "node ../.github/scripts/setup-secrets.js interactive",
+    "test:deployment": "node scripts/test-deployment.js",
+    "staging": "NODE_ENV=staging node src/index.js",
+    "production": "NODE_ENV=production node src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "fs-extra": "^11.1.1",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "node-cron": "^3.0.3",
+    "cheerio": "^1.0.0-rc.12",
+    "gray-matter": "^4.0.3",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@jest/globals": "^29.7.0"
+  },
+  "keywords": [
+    "twitter",
+    "cryptocurrency",
+    "automation",
+    "hugo",
+    "content-generation"
+  ],
+  "author": "Twitter Crypto Content Automation",
+  "license": "MIT"
+}

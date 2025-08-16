@@ -1,0 +1,71 @@
+{
+  "twitter": {
+    "apiVersion": "2",
+    "baseUrl": "https://api.twitter.com/2",
+    "searchEndpoint": "/tweets/search/recent",
+    "maxResults": 100,
+    "searchKeywords": [
+      "cryptocurrency OR crypto",
+      "blockchain OR bitcoin OR BTC",
+      "ethereum OR ETH OR DeFi",
+      "NFT OR Web3 OR altcoin",
+      "加密货币 OR 区块链 OR 比特币"
+    ],
+    "rateLimits": {
+      "searchRequests": 300,
+      "windowMinutes": 15
+    }
+  },
+  "content": {
+    "topTweetsCount": 3,
+    "minRetweetCount": 10,
+    "minCharacterCount": 50,
+    "targetLanguage": "zh-CN",
+    "enhanceContent": true
+  },
+  "hugo": {
+    "contentPath": "../content/posts",
+    "templatePath": "../md-template.md",
+    "buildCommand": "hugo --minify --gc",
+    "outputDir": "../public",
+    "baseUrl": "https://example.org"
+  },
+  "github": {
+    "repository": "your-username/your-repo",
+    "branch": "main",
+    "contentPath": "content/posts",
+    "commitMessage": "🤖 Auto-generated crypto content from Twitter trends"
+  },
+  "duplicate": {
+    "storageFile": "data/processed-tweets.json",
+    "retentionDays": 30,
+    "similarityThreshold": 0.85
+  },
+  "logging": {
+    "level": "INFO",
+    "enableFile": true,
+    "enableConsole": true,
+    "logDir": "logs",
+    "maxFileSize": 10485760,
+    "maxFiles": 5,
+    "format": "json",
+    "includeStackTrace": true
+  },
+  "notifications": {
+    "enabled": false,
+    "channels": [],
+    "retryAttempts": 3,
+    "retryDelay": 5000
+  },
+  "errorHandling": {
+    "maxRetries": 3,
+    "baseDelay": 1000,
+    "maxDelay": 30000,
+    "enableRecovery": true,
+    "criticalErrorThreshold": 5
+  },
+  "scheduling": {
+    "timezone": "Asia/Shanghai",
+    "cronSchedule": "0 1,13 * * *"
+  }
+}

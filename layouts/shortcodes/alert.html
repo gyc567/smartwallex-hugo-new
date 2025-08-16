@@ -1,0 +1,18 @@
+{{- $type := .Get 0 | default "info" -}}
+{{- $icon := "" -}}
+{{- if eq $type "warning" -}}
+  {{- $icon = "⚠️" -}}
+{{- else if eq $type "danger" -}}
+  {{- $icon = "❌" -}}
+{{- else if eq $type "success" -}}
+  {{- $icon = "✅" -}}
+{{- else -}}
+  {{- $icon = "ℹ️" -}}
+{{- end -}}
+
+<div class="alert alert-{{ $type }}">
+  <span class="alert-icon">{{ $icon }}</span>
+  <div class="alert-content">
+    {{ .Inner | markdownify }}
+  </div>
+</div>

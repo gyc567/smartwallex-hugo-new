@@ -20,9 +20,14 @@ Thumbs.db
 
 # Node modules (if using npm/yarn)
 node_modules/
+automation/node_modules/
 
 # Log files
 *.log
+automation/logs/*.log
+
+# Environment variables
+automation/.env
 
 # Temporary files
 *.tmp

@@ -1,0 +1,152 @@
+name: Test Setup
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: true
+        default: 'basic'
+        type: choice
+        options:
+        - basic
+        - secrets
+        - dependencies
+        - hugo
+
+jobs:
+  test-setup:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        if: inputs.test_type == 'basic' || inputs.test_type == 'dependencies' || inputs.test_type == 'secrets'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'automation/package-lock.json'
+      
+      - name: Test basic setup
+        if: inputs.test_type == 'basic'
+        run: |
+          echo "✅ Repository checkout successful"
+          echo "✅ Node.js setup successful"
+          echo "📁 Repository structure:"
+          ls -la
+          echo "📁 Automation directory:"
+          ls -la automation/
+      
+      - name: Test dependencies
+        if: inputs.test_type == 'dependencies'
+        run: |
+          cd automation
+          echo "📦 Installing dependencies..."
+          npm ci --only=production
+          echo "✅ Dependencies installed successfully"
+          echo "📋 Installed packages:"
+          npm list --depth=0
+      
+      - name: Test secrets configuration
+        if: inputs.test_type == 'secrets'
+        env:
+          TWITTER_BEARER_TOKEN: ${{ secrets.TWITTER_BEARER_TOKEN }}
+          TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+        run: |
+          cd automation
+          npm ci --only=production
+          echo "🔍 Testing secrets configuration..."
+          
+          # Test Twitter Bearer Token
+          if [ -n "$TWITTER_BEARER_TOKEN" ]; then
+            echo "✅ TWITTER_BEARER_TOKEN is configured"
+            if [[ "$TWITTER_BEARER_TOKEN" == AAAA* ]]; then
+              echo "✅ TWITTER_BEARER_TOKEN format appears valid"
+            else
+              echo "⚠️  TWITTER_BEARER_TOKEN format may be invalid"
+            fi
+          else
+            echo "❌ TWITTER_BEARER_TOKEN is missing (required)"
+          fi
+          
+          # Test optional secrets
+          if [ -n "$TWITTER_API_KEY" ]; then
+            echo "✅ TWITTER_API_KEY is configured"
+          else
+            echo "⚪ TWITTER_API_KEY not configured (optional)"
+          fi
+          
+          if [ -n "$GOOGLE_TRANSLATE_API_KEY" ]; then
+            echo "✅ GOOGLE_TRANSLATE_API_KEY is configured"
+          else
+            echo "⚪ GOOGLE_TRANSLATE_API_KEY not configured (optional)"
+          fi
+      
+      - name: Setup Hugo
+        if: inputs.test_type == 'hugo'
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+          extended: true
+      
+      - name: Test Hugo setup
+        if: inputs.test_type == 'hugo'
+        run: |
+          echo "🏗️  Testing Hugo setup..."
+          hugo version
+          echo "✅ Hugo installed successfully"
+          
+          echo "📋 Hugo configuration:"
+          if [ -f "hugo.toml" ]; then
+            echo "✅ hugo.toml found"
+            cat hugo.toml
+          else
+            echo "❌ hugo.toml not found"
+          fi
+          
+          echo "📁 Content directory:"
+          if [ -d "content" ]; then
+            echo "✅ content/ directory exists"
+            ls -la content/
+          else
+            echo "❌ content/ directory not found"
+          fi
+          
+          echo "🏗️  Testing Hugo build..."
+          hugo --minify --gc --verbose
+          
+          echo "📁 Build output:"
+          if [ -d "public" ]; then
+            echo "✅ public/ directory created"
+            ls -la public/
+          else
+            echo "❌ public/ directory not created"
+          fi
+      
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Type**: ${{ inputs.test_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          
+          case "${{ inputs.test_type }}" in
+            "basic")
+              echo "- **Repository**: ✅ Accessible" >> $GITHUB_STEP_SUMMARY
+              echo "- **Node.js**: ✅ Configured" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "dependencies")
+              echo "- **Dependencies**: ✅ Installable" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "secrets")
+              echo "- **Secrets**: Check logs for details" >> $GITHUB_STEP_SUMMARY
+              ;;
+            "hugo")
+              echo "- **Hugo**: ✅ Functional" >> $GITHUB_STEP_SUMMARY
+              ;;
+          esac

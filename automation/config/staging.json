@@ -1,0 +1,64 @@
+{
+  "twitter": {
+    "maxResults": 20,
+    "rateLimits": {
+      "searchRequests": 300,
+      "windowMinutes": 15,
+      "enableBackoff": true
+    }
+  },
+  "content": {
+    "topTweetsCount": 2,
+    "minRetweetCount": 5,
+    "minCharacterCount": 50,
+    "qualityFilters": {
+      "enableSpamDetection": true,
+      "minFollowerCount": 50,
+      "excludeRetweets": false
+    }
+  },
+  "hugo": {
+    "buildCommand": "hugo -D --gc",
+    "enableOptimization": false,
+    "compressionLevel": 1
+  },
+  "logging": {
+    "level": "DEBUG",
+    "enableFile": true,
+    "enableConsole": true,
+    "format": "json",
+    "includeStackTrace": true
+  },
+  "notifications": {
+    "enabled": true,
+    "channels": ["slack"],
+    "onSuccess": true,
+    "onError": true,
+    "onWarning": true
+  },
+  "errorHandling": {
+    "maxRetries": 2,
+    "baseDelay": 1000,
+    "maxDelay": 10000,
+    "enableRecovery": true,
+    "criticalErrorThreshold": 5,
+    "enableFailsafe": true
+  },
+  "performance": {
+    "enableCaching": false,
+    "cacheTimeout": 60000,
+    "enableCompression": false,
+    "maxConcurrentRequests": 2
+  },
+  "security": {
+    "enableInputValidation": true,
+    "sanitizeContent": true,
+    "enableRateLimiting": true
+  },
+  "testing": {
+    "enableMockData": false,
+    "mockTweetCount": 5,
+    "skipApiCalls": false,
+    "dryRun": false
+  }
+}

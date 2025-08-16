@@ -2,19 +2,19 @@
 const LIKES_STORAGE_KEY = 'blog_likes';
 
 // 初始化点赞功能
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeLikes();
 });
 
 // 初始化所有点赞按钮
 function initializeLikes() {
     const likeButtons = document.querySelectorAll('.post-likes');
-    
+
     likeButtons.forEach(button => {
         const postId = button.getAttribute('data-post');
         const likeCount = getLikeCount(postId);
         const isLiked = isPostLiked(postId);
-        
+
         updateLikeDisplay(button, likeCount, isLiked);
     });
 }
@@ -24,7 +24,7 @@ function toggleLike(postId) {
     const likes = getLikes();
     const currentCount = likes[postId] ? likes[postId].count : 0;
     const isLiked = likes[postId] ? likes[postId].liked : false;
-    
+
     if (isLiked) {
         // 取消点赞
         likes[postId] = {
@@ -38,16 +38,16 @@ function toggleLike(postId) {
             liked: true
         };
     }
-    
+
     // 保存到本地存储
     localStorage.setItem(LIKES_STORAGE_KEY, JSON.stringify(likes));
-    
+
     // 更新显示
     const likeButton = document.querySelector(`[data-post="${postId}"]`);
     if (likeButton) {
         updateLikeDisplay(likeButton, likes[postId].count, likes[postId].liked);
     }
-    
+
     // 添加动画效果
     animateLike(likeButton);
 }
@@ -74,11 +74,11 @@ function isPostLiked(postId) {
 function updateLikeDisplay(likeButton, count, isLiked) {
     const countElement = likeButton.querySelector('.like-count');
     const btnElement = likeButton.querySelector('.like-btn');
-    
+
     if (countElement) {
         countElement.textContent = count;
     }
-    
+
     if (btnElement) {
         if (isLiked) {
             btnElement.classList.add('liked');
@@ -98,7 +98,7 @@ function animateLike(likeButton) {
         setTimeout(() => {
             btnElement.style.transform = 'scale(1)';
         }, 200);
-        
+
         // 创建飞出的心形动画
         createHeartAnimation(btnElement);
     }
@@ -112,31 +112,31 @@ function createHeartAnimation(element) {
     heart.style.fontSize = '1.5rem';
     heart.style.pointerEvents = 'none';
     heart.style.zIndex = '1000';
-    
+
     const rect = element.getBoundingClientRect();
     heart.style.left = rect.left + 'px';
     heart.style.top = rect.top + 'px';
-    
+
     document.body.appendChild(heart);
-    
+
     // 动画
     let opacity = 1;
     let translateY = 0;
-    
+
     const animate = () => {
         opacity -= 0.02;
         translateY -= 2;
-        
+
         heart.style.opacity = opacity;
         heart.style.transform = `translateY(${translateY}px)`;
-        
+
         if (opacity > 0) {
             requestAnimationFrame(animate);
         } else {
             document.body.removeChild(heart);
         }
     };
-    
+
     requestAnimationFrame(animate);
 }
 

@@ -1,0 +1,45 @@
+{
+  "processedTweets": [
+    {
+      "tweetId": "1234567890",
+      "contentHash": "c93f16fa29c021d4779ccbec7cf70aa746ae941a8cfc37a4086720a643abdfcb",
+      "processedDate": "2025-08-14T09:20:37.113Z",
+      "filename": "bitcoin-ath-analysis-20250814.md",
+      "content": "Bitcoin is reaching new all-time highs! The cryptocurrency market is booming. #crypto #bitcoin",
+      "tweetUrl": "https://twitter.com/user/status/1234567890",
+      "keywords": [
+        "bitcoin",
+        "reaching",
+        "new",
+        "alltime",
+        "highs",
+        "cryptocurrency",
+        "market",
+        "booming",
+        "crypto",
+        "bitcoin"
+      ]
+    },
+    {
+      "tweetId": "1234567891",
+      "contentHash": "9017964c802deb17fdb5e85879b50e113a8bf486274d68e1cc16f34f0791de67",
+      "processedDate": "2025-08-14T09:20:37.383Z",
+      "filename": "ethereum-defi-revolution-20250814.md",
+      "content": "Ethereum smart contracts are revolutionizing DeFi protocols across the blockchain ecosystem.",
+      "tweetUrl": "https://twitter.com/user/status/1234567891",
+      "keywords": [
+        "ethereum",
+        "smart",
+        "contracts",
+        "revolutionizing",
+        "defi",
+        "protocols",
+        "across",
+        "blockchain",
+        "ecosystem"
+      ]
+    }
+  ],
+  "lastUpdated": "2025-08-14T09:20:37.383Z",
+  "version": "1.0.0"
+}
