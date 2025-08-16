@@ -8,12 +8,6 @@
     {{- if .Summary -}}
         {{- $summary = .Summary -}}
     {{- end -}}
-    {{- $pages = $pages | append (dict 
-        "title" .Title 
-        "content" .Plain 
-        "permalink" .Permalink 
-        "summary" $summary
-        "tags" $tags
-    ) -}}
+    {{- $pages = $pages | append (dict "title" .Title "content" .Plain "permalink" .Permalink "summary" $summary "tags" $tags) -}}
 {{- end -}}
 {{- $pages | jsonify -}}
