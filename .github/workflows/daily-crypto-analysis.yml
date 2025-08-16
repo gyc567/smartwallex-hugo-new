@@ -34,9 +34,12 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Install Python dependencies
+      timeout-minutes: 10
       run: |
+        echo "📦 安装 Python 依赖..."
         python -m pip install --upgrade pip
         pip install -r scripts/requirements.txt
+        echo "✅ 依赖安装完成"
 
     - name: Check Python syntax
       run: |
@@ -56,13 +59,21 @@ jobs:
 
     - name: Run crypto project analyzer
       id: analyzer
+      timeout-minutes: 30
       continue-on-error: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTIONS: true
       run: |
+        echo "🚀 开始运行加密货币项目分析器..."
         cd ${{ github.workspace }}
-        python scripts/crypto-project-analyzer.py
+        if ! python scripts/crypto-project-analyzer.py; then
+          echo "❌ 分析器运行失败，请检查日志"
+          echo "analyzer_success=false" >> $GITHUB_OUTPUT
+        else
+          echo "✅ 分析器运行成功"
+          echo "analyzer_success=true" >> $GITHUB_OUTPUT
+        fi
 
     - name: Check for new articles
       id: check_articles
@@ -73,8 +84,11 @@ jobs:
 
     - name: Build Hugo site
       if: steps.check_articles.outputs.new_articles > 0
+      timeout-minutes: 10
       run: |
+        echo "🏗️ 构建 Hugo 站点..."
         hugo --cleanDestinationDir --minify
+        echo "✅ 站点构建完成"
 
     - name: Commit and push changes
       if: steps.check_articles.outputs.new_articles > 0
