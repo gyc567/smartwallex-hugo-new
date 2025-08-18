@@ -1,4 +1,4 @@
-baseURL = 'https://example.org/'
+baseURL = 'https://www.smartwallex.com/'
 languageCode = 'zh-cn'
 title = 'SmartWallex - 加密货币聪明钱信息聚合平台'
 theme = 'PaperMod'
