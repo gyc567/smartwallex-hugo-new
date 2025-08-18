@@ -115,7 +115,8 @@ MIT License
 
 每日推文分析：
 
-现在生成一篇推文调研分析报告，调研对象 是：https://x.com/lookonchain/status/1957363860052349197?t=Zwdp0XrMn_YkGsJAOeoCRQ&s=19 要求：1.分析推文的专业知识 2.市场动态 3.资金动态 4.市场投资机会 5.当前比特币和以太坊实时报价（curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd" | python3 -m json.tool
+现在生成一篇推文调研分析报告，调研对象 是：https://x.com/CryptoCapo_/status/1939739204948214191?t=lix-2rYJVKyRZRhluNTp7A&s=19(如果X.com限制无法直接获取推文内容,就使用fxTwitter.com的API接口成功绕过X.com限制，获取到完
+  整的推文内容和相关元数据。命令参考：curl -s "https://fxtwitter.com/lookonchain/status/1939739204948214191" | grep -A 10 -B 5 "og:description")要求：1.显示原始推文并翻译成中文。2.分析推文的包括的内在信息 和实时市场动态 3.实时资金动态 4.市场投资机会 5.当前比特币和以太坊实时报价（curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd" | python3 -m json.tool
 ）
 6.生成报告的模板格式必须参考：md-template.md，生成的报告为markdown格式，文件名为英文名格式。
 输出到目录：content/posts
