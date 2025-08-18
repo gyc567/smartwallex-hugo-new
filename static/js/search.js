@@ -5,8 +5,9 @@ let searchResults;
 
 // 初始化搜索
 document.addEventListener('DOMContentLoaded', function() {
-    searchInput = document.getElementById('search-input');
-    searchResults = document.getElementById('search-results');
+    // 支持两种搜索框：导航栏搜索和搜索页面搜索
+    searchInput = document.getElementById('search-input') || document.getElementById('searchInput');
+    searchResults = document.getElementById('search-results') || document.getElementById('searchResults');
     
     if (searchInput && searchResults) {
         // 加载搜索索引
@@ -50,23 +51,39 @@ function handleSearch(e) {
 // 显示搜索结果
 function displaySearchResults(results, query) {
     if (results.length === 0) {
-        searchResults.innerHTML = '<div class="search-result-item">未找到相关内容</div>';
+        if (searchResults.tagName === 'UL') {
+            // PaperMod主题的搜索结果容器（ul）
+            searchResults.innerHTML = '<li class="post-entry">未找到相关内容</li>';
+        } else {
+            // 自定义搜索结果容器（div）
+            searchResults.innerHTML = '<div class="search-result-item">未找到相关内容</div>';
+        }
         searchResults.style.display = 'block';
         return;
     }
     
-    const html = results.map(item => {
-        const highlightedTitle = highlightText(item.title, query);
-        const highlightedSummary = highlightText(item.summary || '', query);
-        
-        return `
-            <div class="search-result-item" onclick="window.location.href='${item.permalink}'">
-                <h4>${highlightedTitle}</h4>
-                <p>${highlightedSummary}</p>
-                <small>${item.date}</small>
-            </div>
-        `;
-    }).join('');
+    let html;
+    if (searchResults.tagName === 'UL') {
+        // PaperMod主题的搜索结果格式（ul > li）
+        html = results.map(item => {
+            const highlightedTitle = highlightText(item.title, query);
+            return `<li class="post-entry"><header class="entry-header">${highlightedTitle}&nbsp;»</header><a href="${item.permalink}" aria-label="${item.title}"></a></li>`;
+        }).join('');
+    } else {
+        // 自定义搜索结果格式（div）
+        html = results.map(item => {
+            const highlightedTitle = highlightText(item.title, query);
+            const highlightedSummary = highlightText(item.summary || '', query);
+            
+            return `
+                <div class="search-result-item" onclick="window.location.href='${item.permalink}'">
+                    <h4>${highlightedTitle}</h4>
+                    <p>${highlightedSummary}</p>
+                    <small>${item.date}</small>
+                </div>
+            `;
+        }).join('');
+    }
     
     searchResults.innerHTML = html;
     searchResults.style.display = 'block';
