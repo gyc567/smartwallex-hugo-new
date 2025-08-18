@@ -1,9 +1,12 @@
 {
-  "last_updated": "2025-08-17T16:03:01.298678",
-  "total_projects": 3,
+  "last_updated": "2025-08-18T16:03:19.162094",
+  "total_projects": 6,
   "analyzed_projects": [
     "Foulvelstingw3S/Github-Mev-Bot",
+    "crestalnetwork/intentkit",
     "Cyfrin/security-and-auditing-full-course-s23",
-    "crestalnetwork/intentkit"
+    "Smart-rwl/AI-for-Trading",
+    "anthugeist/synapse-bot",
+    "PhexionspqzSU/UNISWAP-BOT"
   ]
 }
