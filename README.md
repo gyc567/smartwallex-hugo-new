@@ -112,3 +112,10 @@ categories = ['分类']
 ## 许可证
 
 MIT License
+
+每日推文分析：
+
+现在生成一篇推文调研分析报告，调研对象 是：https://x.com/lookonchain/status/1957363860052349197?t=Zwdp0XrMn_YkGsJAOeoCRQ&s=19 要求：1.分析推文的专业知识 2.市场动态 3.资金动态 4.市场投资机会 5.当前比特币和以太坊实时报价（curl -s "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd" | python3 -m json.tool
+）
+6.生成报告的模板格式必须参考：md-template.md，生成的报告为markdown格式，文件名为英文名格式。
+输出到目录：content/posts
