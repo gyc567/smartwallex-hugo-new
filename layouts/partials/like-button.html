@@ -1,0 +1,45 @@
+{{/* 点赞按钮 partial - 保持原有功能 */}}
+<div class="like-container" style="margin: 20px 0;">
+    <button class="like-button" onclick="toggleLike('{{ .RelPermalink }}')">
+        <span class="crypto-icon">👍</span>
+        <span class="like-text">点赞</span>
+        <span class="like-count" id="like-count-{{ .RelPermalink | urlize }}">0</span>
+    </button>
+</div>
+
+<script>
+// 保持原有的点赞功能
+if (typeof toggleLike === 'undefined') {
+    function toggleLike(postId) {
+        const button = document.querySelector(`button[onclick="toggleLike('${postId}')"]`);
+        const countElement = document.getElementById(`like-count-${postId.replace(/[^a-zA-Z0-9]/g, '')}`);
+        
+        if (button.classList.contains('liked')) {
+            button.classList.remove('liked');
+            button.querySelector('.like-text').textContent = '点赞';
+            let count = parseInt(countElement.textContent) - 1;
+            countElement.textContent = Math.max(0, count);
+            localStorage.removeItem(`liked-${postId}`);
+        } else {
+            button.classList.add('liked');
+            button.querySelector('.like-text').textContent = '已赞';
+            let count = parseInt(countElement.textContent) + 1;
+            countElement.textContent = count;
+            localStorage.setItem(`liked-${postId}`, 'true');
+        }
+    }
+    
+    // 页面加载时恢复点赞状态
+    document.addEventListener('DOMContentLoaded', function() {
+        const buttons = document.querySelectorAll('.like-button');
+        buttons.forEach(button => {
+            const onclick = button.getAttribute('onclick');
+            const postId = onclick.match(/toggleLike\('([^']+)'\)/)[1];
+            if (localStorage.getItem(`liked-${postId}`)) {
+                button.classList.add('liked');
+                button.querySelector('.like-text').textContent = '已赞';
+            }
+        });
+    });
+}
+</script>

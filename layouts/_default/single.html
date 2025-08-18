@@ -1,95 +1,75 @@
-{{ define "main" }}
+{{- define "main" }}
+
 <article class="post-single">
-    <header class="post-header">
-        <h1>{{ .Title }}</h1>
-        <div class="post-meta">
-            {{ if .Date }}
-            <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006年01月02日" }}</time>
-            {{ end }}
-            <span class="reading-time">阅读时间: {{ .ReadingTime }}分钟</span>
-            {{ with .File }}
-            <div class="post-likes" data-post="{{ .UniqueID }}">
-                <button class="like-btn" onclick="toggleLike('{{ .UniqueID }}')">
-                    ❤️ <span class="like-count">0</span>
-                </button>
-            </div>
-            {{ else }}
-            <div class="post-likes" data-post="{{ .RelPermalink | md5 }}">
-                <button class="like-btn" onclick="toggleLike('{{ .RelPermalink | md5 }}')">
-                    ❤️ <span class="like-count">0</span>
-                </button>
-            </div>
-            {{ end }}
-        </div>
-        
-        {{ if .Params.tags }}
-        <div class="post-tags">
-            {{ range .Params.tags }}
-            <span class="tag">#{{ . }}</span>
-            {{ end }}
-        </div>
-        {{ end }}
-    </header>
-    
-    <!-- Monetag文章顶部广告 -->
-    {{ if .Site.Params.monetag }}
-    <div class="ad-container article-top-ad">
-        <ins class="adsbygoogle"
-             style="display:block; text-align:center;"
-             data-ad-layout="in-article"
-             data-ad-format="fluid"
-             data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
-             data-ad-slot="ARTICLE_TOP_AD_SLOT"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
+  <header class="post-header">
+    {{ partial "breadcrumbs.html" . }}
+    <h1 class="post-title">
+      {{ .Title }}
+      {{- if .Draft }}<sup><span class="entry-isdraft">&nbsp;&nbsp;[draft]</span></sup>{{- end }}
+    </h1>
+    {{- if .Description }}
+    <div class="post-description">
+      {{ .Description }}
     </div>
-    {{ end }}
-    
-    <div class="post-content">
-        {{ .Content }}
+    {{- end }}
+    {{- if not (.Param "hideMeta") }}
+    <div class="post-meta">
+      {{- partial "post_meta.html" . -}}
+      {{- partial "translation_list.html" . -}}
+      {{- partial "edit_post.html" . -}}
+      {{- partial "post_canonical.html" . -}}
     </div>
+    {{- end }}
+  </header>
+  
+  {{- $isHidden := .Params.cover.hidden | default site.Params.cover.hiddenInSingle | default site.Params.cover.hidden }}
+  {{- partial "cover.html" (dict "cxt" . "IsHome" false "isHidden" $isHidden) }}
+  
+  {{- if (.Param "ShowToc") }}
+  {{- partial "toc.html" . }}
+  {{- end }}
+
+  {{- if .Content }}
+  <div class="post-content">
+    {{- if not (.Param "disableAnchoredHeadings") }}
+    {{- partial "anchored_headings.html" .Content -}}
+    {{- else }}{{ .Content }}{{ end }}
+  </div>
+  {{- end }}
+
+  {{/* 添加自定义的点赞和分享功能 */}}
+  <div class="post-actions" style="margin: 30px 0; padding: 20px 0; border-top: 1px solid var(--border);">
+    {{/* 点赞按钮 */}}
+    {{ partial "like-button.html" . }}
     
-    <!-- Monetag文章底部广告 -->
-    {{ if .Site.Params.monetag }}
-    <div class="ad-container article-bottom-ad">
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-client="ca-pub-{{ .Site.Params.monetagId }}"
-             data-ad-slot="ARTICLE_BOTTOM_AD_SLOT"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-    </div>
-    {{ end }}
-    
-    <footer class="post-footer">
-        <div class="post-nav">
-            {{ with .PrevInSection }}
-            <a href="{{ .Permalink }}" class="prev-post">← {{ .Title }}</a>
-            {{ end }}
-            {{ with .NextInSection }}
-            <a href="{{ .Permalink }}" class="next-post">{{ .Title }} →</a>
-            {{ end }}
-        </div>
-    </footer>
+    {{/* 分享按钮 */}}
+    {{ partial "crypto-share.html" . }}
+  </div>
+
+  <footer class="post-footer">
+    {{- $tags := .Language.Params.Taxonomies.tag | default "tags" }}
+    {{- if (.Param $tags) }}
+    <nav class="paginav">
+      {{- with .PrevInSection }}
+      <a class="prev" href="{{ .Permalink }}">
+        <span class="title">« {{ .LinkTitle }}</span>
+      </a>
+      {{- end }}
+      {{- with .NextInSection }}
+      <a class="next" href="{{ .Permalink }}">
+        <span class="title">{{ .LinkTitle }} »</span>
+      </a>
+      {{- end }}
+    </nav>
+    {{- end }}
+
+    {{- if (.Param "ShowPostNavLinks") }}
+    {{- partial "post_nav_links.html" . }}
+    {{- end }}
+
+    {{- partial "share_icons.html" . -}}
+    {{- partial "comments.html" . }}
+  </footer>
 </article>
 
-<!-- 相关文章 -->
-{{ $related := .Site.RegularPages.Related . | first 3 }}
-{{ if $related }}
-<section class="related-posts">
-    <h3>相关文章</h3>
-    <div class="related-grid">
-        {{ range $related }}
-        <article class="related-post">
-            <h4><a href="{{ .Permalink }}">{{ .Title }}</a></h4>
-            {{ if .Date }}<time>{{ .Date.Format "2006年01月02日" }}</time>{{ end }}
-        </article>
-        {{ end }}
-    </div>
-</section>
-{{ end }}
-{{ end }}
+{{- end }}{{/* end main */}}

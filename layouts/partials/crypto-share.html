@@ -1,0 +1,36 @@
+{{/* 加密货币主题分享按钮 */}}
+<div class="share-buttons">
+    <a href="https://twitter.com/intent/tweet?text={{ .Title | urlquery }}&url={{ .Permalink }}&hashtags=SmartWallex,加密货币,区块链" 
+       target="_blank" 
+       class="share-button twitter">
+        <span class="crypto-icon">🐦</span> 分享到Twitter
+    </a>
+    
+    <a href="https://t.me/share/url?url={{ .Permalink }}&text={{ .Title | urlquery }}" 
+       target="_blank" 
+       class="share-button telegram">
+        <span class="crypto-icon">📱</span> 分享到Telegram
+    </a>
+    
+    <button onclick="copyToClipboard('{{ .Permalink }}')" 
+            class="share-button" 
+            style="background: var(--crypto-purple); border: none; cursor: pointer;">
+        <span class="crypto-icon">🔗</span> 复制链接
+    </button>
+</div>
+
+<script>
+if (typeof copyToClipboard === 'undefined') {
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            // 创建临时提示
+            const button = event.target.closest('button');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<span class="crypto-icon">✅</span> 已复制';
+            setTimeout(() => {
+                button.innerHTML = originalText;
+            }, 2000);
+        });
+    }
+}
+</script>

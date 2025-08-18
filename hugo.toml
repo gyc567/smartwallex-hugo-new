@@ -1,6 +1,7 @@
 baseURL = 'https://example.org/'
 languageCode = 'zh-cn'
 title = 'SmartWallex - 加密货币聪明钱信息聚合平台'
+theme = 'PaperMod'
 
 [params]
   description = "专业的加密货币聪明钱信息聚合平台，提供GitHub项目分析、市场洞察和投资建议"
@@ -21,6 +22,55 @@ title = 'SmartWallex - 加密货币聪明钱信息聚合平台'
   monetag = true
   monetagId = "YOUR_MONETAG_ID"
 
+  # PaperMod主题配置
+  env = "production"
+  ShowReadingTime = true
+  ShowShareButtons = true
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowWordCount = true
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
+  disableSpecial1stPost = false
+  disableScrollToTop = false
+  comments = false
+  hidemeta = false
+  hideSummary = false
+  showtoc = false
+  tocopen = false
+
+  # 主题外观
+  defaultTheme = "auto"
+  disableThemeToggle = false
+
+  # 首页配置
+  homeInfoParams.Title = "SmartWallex 🚀"
+  homeInfoParams.Content = "专业的加密货币聪明钱信息聚合平台，为您提供最新的区块链项目分析、市场洞察和投资建议。跟随聪明钱的脚步，发现下一个机会！"
+
+  # 社交链接
+  [[params.socialIcons]]
+  name = "twitter"
+  url = "https://twitter.com/smartwallex"
+
+  [[params.socialIcons]]
+  name = "github"
+  url = "https://github.com/smartwallex"
+
+  [[params.socialIcons]]
+  name = "telegram"
+  url = "https://t.me/smartwallex"
+
+  # 搜索配置
+  [params.fuseOpts]
+  isCaseSensitive = false
+  shouldSort = true
+  location = 0
+  distance = 1000
+  threshold = 0.4
+  minMatchCharLength = 0
+  keys = ["title", "permalink", "summary", "content"]
+
 [markup]
   [markup.goldmark]
     [markup.goldmark.renderer]
@@ -37,3 +87,28 @@ title = 'SmartWallex - 加密货币聪明钱信息聚合平台'
 [sitemap]
   changefreq = "weekly"
   priority = 0.5
+
+# 菜单配置
+[[menu.main]]
+identifier = "home"
+name = "首页"
+url = "/"
+weight = 10
+
+[[menu.main]]
+identifier = "posts"
+name = "文章"
+url = "/posts/"
+weight = 20
+
+[[menu.main]]
+identifier = "about"
+name = "关于"
+url = "/about/"
+weight = 30
+
+[[menu.main]]
+identifier = "search"
+name = "搜索"
+url = "/search/"
+weight = 40
