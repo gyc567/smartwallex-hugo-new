@@ -1,15 +1,18 @@
 {
-  "last_updated": "2025-08-19T16:03:25.415970",
-  "total_projects": 9,
+  "last_updated": "2025-08-20T16:03:35.209964",
+  "total_projects": 12,
   "analyzed_projects": [
-    "Cyfrin/security-and-auditing-full-course-s23",
+    "project-sekai-ctf/sekaictf-2025",
+    "walletgen-btc/seed-phrase-generator",
+    "PhexionspqzSU/UNISWAP-BOT",
+    "void-faceee/casino-smart-contract",
     "crestalnetwork/intentkit",
+    "Foulvelstingw3S/Github-Mev-Bot",
     "Smart-rwl/AI-for-Trading",
     "anthugeist/synapse-bot",
-    "walletgen-btc/seed-phrase-generator",
+    "anthugeist/synapse-trading-bot",
+    "Cyfrin/security-and-auditing-full-course-s23",
     "halthork28Xur/Frontrunning-Mev-Bot",
-    "project-sekai-ctf/sekaictf-2025",
-    "Foulvelstingw3S/Github-Mev-Bot",
-    "PhexionspqzSU/UNISWAP-BOT"
+    "Avarine1nyoTP/Flashloan-Arbitrage-Bot"
   ]
 }
