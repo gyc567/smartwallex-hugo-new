@@ -1,18 +1,21 @@
 {
-  "last_updated": "2025-08-20T16:03:35.209964",
-  "total_projects": 12,
+  "last_updated": "2025-08-21T16:03:17.759799",
+  "total_projects": 15,
   "analyzed_projects": [
     "project-sekai-ctf/sekaictf-2025",
-    "walletgen-btc/seed-phrase-generator",
+    "Cyfrin/security-and-auditing-full-course-s23",
+    "Avarine1nyoTP/Flashloan-Arbitrage-Bot",
+    "Ravoxenwh5JbE/Flashloan",
+    "halthork28Xur/Frontrunning-Mev-Bot",
     "PhexionspqzSU/UNISWAP-BOT",
-    "void-faceee/casino-smart-contract",
+    "Seratharz7FAJ1/Flashloan-Arbitrage-Bot",
+    "walletgen-btc/seed-phrase-generator",
+    "Smart-rwl/AI-for-Trading",
     "crestalnetwork/intentkit",
     "Foulvelstingw3S/Github-Mev-Bot",
-    "Smart-rwl/AI-for-Trading",
-    "anthugeist/synapse-bot",
+    "tony-btc1/seed-phrase-generator",
+    "void-faceee/casino-smart-contract",
     "anthugeist/synapse-trading-bot",
-    "Cyfrin/security-and-auditing-full-course-s23",
-    "halthork28Xur/Frontrunning-Mev-Bot",
-    "Avarine1nyoTP/Flashloan-Arbitrage-Bot"
+    "anthugeist/synapse-bot"
   ]
 }
