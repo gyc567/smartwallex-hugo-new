@@ -1,21 +1,24 @@
 {
-  "last_updated": "2025-08-21T16:03:17.759799",
-  "total_projects": 15,
+  "last_updated": "2025-08-22T16:03:21.522595",
+  "total_projects": 18,
   "analyzed_projects": [
-    "project-sekai-ctf/sekaictf-2025",
-    "Cyfrin/security-and-auditing-full-course-s23",
-    "Avarine1nyoTP/Flashloan-Arbitrage-Bot",
-    "Ravoxenwh5JbE/Flashloan",
-    "halthork28Xur/Frontrunning-Mev-Bot",
-    "PhexionspqzSU/UNISWAP-BOT",
-    "Seratharz7FAJ1/Flashloan-Arbitrage-Bot",
-    "walletgen-btc/seed-phrase-generator",
-    "Smart-rwl/AI-for-Trading",
+    "anthugeist/synapse-trading-bot",
     "crestalnetwork/intentkit",
     "Foulvelstingw3S/Github-Mev-Bot",
+    "halthork28Xur/Frontrunning-Mev-Bot",
+    "Avarine1nyoTP/Flashloan-Arbitrage-Bot",
+    "PhexionspqzSU/UNISWAP-BOT",
     "tony-btc1/seed-phrase-generator",
-    "void-faceee/casino-smart-contract",
-    "anthugeist/synapse-trading-bot",
-    "anthugeist/synapse-bot"
+    "biowarrior2000i8z/Web3-Flash-Loan-Arb-2025",
+    "project-sekai-ctf/sekaictf-2025",
+    "slflashfilenet/Crypto-Wallet-Cracker-25-N",
+    "Flynntoni536/usdt-flash-flasher-new",
+    "Seratharz7FAJ1/Flashloan-Arbitrage-Bot",
+    "walletgen-btc/seed-phrase-generator",
+    "Cyfrin/security-and-auditing-full-course-s23",
+    "Ravoxenwh5JbE/Flashloan",
+    "anthugeist/synapse-bot",
+    "Smart-rwl/AI-for-Trading",
+    "void-faceee/casino-smart-contract"
   ]
 }
