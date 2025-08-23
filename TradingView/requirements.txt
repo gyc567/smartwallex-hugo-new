@@ -1,0 +1,21 @@
+# TradingView分析系统依赖
+
+# 数据获取
+ccxt>=4.0.0
+requests>=2.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 技术分析
+talib>=0.4.0
+scipy>=1.10.0
+
+# AI分析 (与现有系统保持一致)
+zhipuai>=1.0.0
+
+# 工具库
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# 日志和配置
+pyyaml>=6.0
