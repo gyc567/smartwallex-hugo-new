@@ -8,6 +8,18 @@ import os
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')  # 可选，提高API限制
 GITHUB_API_BASE = 'https://api.github.com'
 
+# GLM-4.5 AI配置
+GLM_API_KEY = os.getenv('GLM_API_KEY')  # 智谱AI API密钥
+GLM_API_BASE = 'https://open.bigmodel.cn/api/paas/v4/'
+GLM_MODEL = 'glm-4.5'
+
+# AI分析配置
+AI_ENABLED = True  # 是否启用AI分析
+AI_FILTER_THRESHOLD = 0.6  # AI过滤阈值（0-1），低于此分数的项目被过滤
+AI_ANALYSIS_MAX_TOKENS = 2000  # AI分析最大token数
+AI_TEMPERATURE = 0.7  # AI创造性参数
+AI_TOP_P = 0.9  # AI多样性参数
+
 # 搜索配置
 SEARCH_KEYWORDS = [
     'cryptocurrency', 'blockchain', 'bitcoin', 'ethereum', 

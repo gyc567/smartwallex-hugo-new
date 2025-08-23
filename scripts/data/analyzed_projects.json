@@ -1,12 +1,15 @@
 {
-  "last_updated": "2025-08-16T18:33:21.520578",
-  "total_projects": 6,
+  "last_updated": "2025-08-23T16:33:33.604909",
+  "total_projects": 9,
   "analyzed_projects": [
-    "Foulvelstingw3S/Github-Mev-Bot",
-    "Cyfrin/security-and-auditing-full-course-s23",
+    "vyndrazdw03/Flashloan-Arbitrage-Bot",
+    "hsliuping/TradingAgents-CN",
     "Zalthorwb6BI/Frontrunning-Mev-Bot",
+    "Foulvelstingw3S/Github-Mev-Bot",
+    "project-sekai-ctf/sekaictf-2025",
     "crestalnetwork/intentkit",
     "PhexionspqzSU/UNISWAP-BOT",
-    "Smart-rwl/AI-for-Trading"
+    "Smart-rwl/AI-for-Trading",
+    "Cyfrin/security-and-auditing-full-course-s23"
   ]
 }

@@ -8,13 +8,16 @@ import requests
 import json
 import os
 import datetime
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional, Tuple
 import time
 import re
 import hashlib
+from openai import OpenAI
+import config
+from glm_logger import GLMLogger, GLMClientWrapper
 
 class CryptoProjectAnalyzer:
-    def __init__(self, github_token: str = None):
+    def __init__(self, github_token: str = None, glm_api_key: str = None):
         self.github_token = github_token
         self.headers = {
             'Accept': 'application/vnd.github.v3+json',
@@ -22,6 +25,29 @@ class CryptoProjectAnalyzer:
         }
         if github_token:
             self.headers['Authorization'] = f'token {github_token}'
+        
+        # AI客户端初始化
+        self.ai_enabled = config.AI_ENABLED and glm_api_key
+        if self.ai_enabled:
+            try:
+                # 初始化GLM日志记录器
+                self.glm_logger = GLMLogger()
+                
+                # 使用包装客户端，自动记录API调用
+                self.ai_client = GLMClientWrapper(
+                    api_key=glm_api_key,
+                    base_url=config.GLM_API_BASE,
+                    logger=self.glm_logger
+                )
+                print("✅ AI分析已启用（含日志记录）")
+            except Exception as e:
+                print(f"⚠️  AI客户端初始化失败: {e}")
+                self.ai_enabled = False
+                self.glm_logger = None
+        else:
+            self.ai_client = None
+            self.glm_logger = None
+            print("ℹ️  AI分析未启用")
         
         # 项目历史记录文件路径
         self.history_file = 'data/analyzed_projects.json'
@@ -66,6 +92,187 @@ class CryptoProjectAnalyzer:
         """检查项目是否已经被分析过"""
         project_key = self.get_project_key(project)
         return project_key in analyzed_projects
+    
+    def ai_analyze_project_quality(self, project_details: Dict[str, Any]) -> Tuple[float, str]:
+        """使用AI分析项目质量和价值"""
+        if not self.ai_enabled:
+            return 0.7, "AI分析未启用"
+        
+        try:
+            basic_info = project_details['basic_info']
+            readme_content = project_details.get('readme_content', '').strip()
+            recent_commits = project_details.get('recent_commits', [])
+            languages = project_details.get('languages', {})
+            topics = project_details.get('topics', [])
+            
+            # 构建分析提示
+            project_summary = f"""
+项目名称: {basic_info['name']}
+项目描述: {basic_info.get('description', '无描述')}
+GitHub Stars: {basic_info['stargazers_count']}
+Fork数量: {basic_info['forks_count']}
+主要语言: {basic_info.get('language', '未知')}
+项目标签: {', '.join(topics) if topics else '无标签'}
+创建时间: {basic_info['created_at'][:10]}
+最后更新: {basic_info['updated_at'][:10]}
+
+README摘要: {readme_content[:800] if readme_content else '无README内容'}
+
+最近提交情况: {len(recent_commits)}个最近提交
+代码语言分布: {list(languages.keys())[:5] if languages else '无语言数据'}
+"""
+            
+            system_prompt = """你是一个专业的区块链和加密货币项目分析专家。请基于提供的GitHub项目信息，从以下维度进行评估：
+
+1. 技术创新性和实用性
+2. 代码质量和活跃度
+3. 社区关注和参与度
+4. 项目完整性和成熟度
+5. 市场潜力和应用价值
+
+请给出0-1之间的质量分数（保留2位小数），其中：
+- 0.0-0.3: 低质量项目（空项目、demo项目、过时项目）
+- 0.4-0.6: 普通质量项目（基础功能完整但创新性不足）
+- 0.7-0.8: 高质量项目（技术先进、功能完整、有实际应用价值）
+- 0.9-1.0: 顶级项目（技术领先、社区活跃、商业价值高）
+
+请以JSON格式回复：{"score": 分数, "analysis": "详细分析原因（中文，200字以内）"}"""
+            
+            user_prompt = f"请分析以下加密货币/区块链GitHub项目：\n\n{project_summary}"
+            
+            completion = self.ai_client.chat_completions_create(
+                model=config.GLM_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=config.AI_TEMPERATURE,
+                top_p=config.AI_TOP_P,
+                max_tokens=config.AI_ANALYSIS_MAX_TOKENS
+            )
+            
+            response_text = completion.choices[0].message.content.strip()
+            
+            # 解析JSON响应
+            try:
+                result = json.loads(response_text)
+                score = float(result.get('score', 0.5))
+                analysis = result.get('analysis', '分析内容解析失败')
+                
+                # 确保分数在有效范围内
+                score = max(0.0, min(1.0, score))
+                
+                return score, analysis
+                
+            except (json.JSONDecodeError, ValueError) as e:
+                print(f"⚠️  AI响应解析失败: {e}")
+                # 尝试从响应中提取数字
+                import re
+                score_match = re.search(r'"score":\s*([0-9.]+)', response_text)
+                if score_match:
+                    score = float(score_match.group(1))
+                    return max(0.0, min(1.0, score)), "AI分析完成，但详细分析解析失败"
+                else:
+                    return 0.5, "AI响应格式错误"
+        
+        except Exception as e:
+            print(f"⚠️  AI分析失败: {e}")
+            return 0.5, f"AI分析出错: {str(e)}"
+    
+    def ai_generate_project_summary(self, project_details: Dict[str, Any], ai_analysis: str) -> str:
+        """使用AI生成项目摘要"""
+        if not self.ai_enabled:
+            return "AI摘要生成未启用"
+        
+        try:
+            basic_info = project_details['basic_info']
+            category = self.analyze_project_category(project_details)
+            
+            system_prompt = """你是一个专业的区块链技术写作专家。请基于项目信息生成一个简洁有力的项目摘要，要求：
+
+1. 中文输出，150字以内
+2. 突出项目的核心功能和技术特点
+3. 结合GitHub数据说明项目热度
+4. 适合作为评测文章的开头段落
+5. 语言要专业且吸引人
+
+格式要求：直接输出摘要文字，不要JSON格式。"""
+            
+            user_prompt = f"""请为以下项目生成专业摘要：
+
+项目名称: {basic_info['name']}
+项目类型: {category}
+项目描述: {basic_info.get('description', '无描述')}
+GitHub Stars: {basic_info['stargazers_count']:,}
+主要语言: {basic_info.get('language', '未知')}
+AI质量分析: {ai_analysis}
+
+请生成一个适合评测文章开头的专业摘要。"""
+            
+            completion = self.ai_client.chat_completions_create(
+                model=config.GLM_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=config.AI_TEMPERATURE,
+                top_p=config.AI_TOP_P,
+                max_tokens=500
+            )
+            
+            return completion.choices[0].message.content.strip()
+        
+        except Exception as e:
+            print(f"⚠️  AI摘要生成失败: {e}")
+            return f"{basic_info['name']}是一个{self.analyze_project_category(project_details)}项目，在GitHub上获得{basic_info['stargazers_count']:,}个星标。"
+    
+    def ai_analyze_stars_and_forks(self, project_details: Dict[str, Any]) -> str:
+        """使用AI分析项目的star和fork数据"""
+        if not self.ai_enabled:
+            return "基于GitHub数据的标准分析"
+        
+        try:
+            basic_info = project_details['basic_info']
+            created_days = (datetime.datetime.now() - datetime.datetime.strptime(basic_info['created_at'], '%Y-%m-%dT%H:%M:%SZ')).days
+            
+            system_prompt = """你是一个GitHub数据分析专家。请基于项目的stars、forks数据和创建时间，分析项目的社区表现，要求：
+
+1. 分析stars和forks的比例关系
+2. 评估项目的增长速度（基于创建时间）
+3. 对比同类项目的平均水平
+4. 给出社区活跃度评价
+5. 中文输出，100字以内
+
+直接输出分析结果，不要JSON格式。"""
+            
+            user_prompt = f"""请分析以下项目的GitHub数据表现：
+
+项目名称: {basic_info['name']}
+GitHub Stars: {basic_info['stargazers_count']:,}
+Fork数量: {basic_info['forks_count']:,}
+创建天数: {created_days}天
+Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_count']):.1f}:1
+日均Stars: {basic_info['stargazers_count'] / max(1, created_days):.2f}个/天"""
+            
+            completion = self.ai_client.chat_completions_create(
+                model=config.GLM_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=config.AI_TEMPERATURE,
+                top_p=config.AI_TOP_P,
+                max_tokens=300
+            )
+            
+            return completion.choices[0].message.content.strip()
+        
+        except Exception as e:
+            print(f"⚠️  AI数据分析失败: {e}")
+            stars = basic_info['stargazers_count']
+            forks = basic_info['forks_count']
+            ratio = stars / max(1, forks)
+            return f"该项目获得{stars:,}个星标和{forks:,}个Fork，星Fork比为{ratio:.1f}:1，显示出良好的社区关注度。"
     
     def search_crypto_projects(self, days_back: int = 7, max_projects: int = 3) -> List[Dict[str, Any]]:
         """搜索加密货币项目，确保不重复已分析的项目"""
@@ -115,12 +322,48 @@ class CryptoProjectAnalyzer:
                 unique_projects[repo_id] = project
                 new_projects.append(project)
         
-        # 按多个维度排序
+        # AI质量过滤（如果启用）
+        if self.ai_enabled and new_projects:
+            print(f"🤖 开始AI质量分析，候选项目: {len(new_projects)}个")
+            ai_filtered_projects = []
+            
+            for project in new_projects:
+                try:
+                    print(f"🔍 AI分析项目: {project['name']}")
+                    
+                    # 获取项目详情用于AI分析
+                    project_details = self.get_project_details(project)
+                    ai_score, ai_analysis = self.ai_analyze_project_quality(project_details)
+                    
+                    print(f"📊 AI评分: {ai_score:.2f} - {project['name']}")
+                    
+                    if ai_score >= config.AI_FILTER_THRESHOLD:
+                        # 将AI分析结果存储到项目详情中，供后续使用
+                        project['ai_score'] = ai_score
+                        project['ai_analysis'] = ai_analysis
+                        ai_filtered_projects.append(project)
+                        print(f"✅ 通过AI过滤: {project['name']} (评分: {ai_score:.2f})")
+                    else:
+                        print(f"❌ 被AI过滤: {project['name']} (评分: {ai_score:.2f}, 阈值: {config.AI_FILTER_THRESHOLD})")
+                    
+                    # 避免API限制
+                    time.sleep(1)
+                    
+                except Exception as e:
+                    print(f"⚠️  AI分析失败: {project['name']} - {e}")
+                    # AI分析失败的项目仍然保留
+                    ai_filtered_projects.append(project)
+            
+            new_projects = ai_filtered_projects
+            print(f"🎯 AI过滤后剩余项目: {len(new_projects)}个")
+        
+        # 按多个维度排序（优先考虑AI评分）
         sorted_projects = sorted(
             new_projects,
             key=lambda x: (
-                x['stargazers_count'],  # 星标数
-                x['forks_count'],       # Fork数
+                x.get('ai_score', 0.5),  # AI评分（优先级最高）
+                x['stargazers_count'],   # 星标数
+                x['forks_count'],        # Fork数
                 -self._days_since_created(x),  # 创建时间（越新越好）
                 -self._days_since_updated(x)   # 更新时间（越新越好）
             ),
@@ -339,12 +582,37 @@ class CryptoProjectAnalyzer:
         homepage = basic_info.get('homepage', '')
         github_url = basic_info['html_url']
         
+        # 获取AI分析结果
+        ai_score = basic_info.get('ai_score')
+        ai_analysis = basic_info.get('ai_analysis', '')
+        ai_summary = ""
+        ai_data_analysis = ""
+        
+        # 生成AI内容
+        if self.ai_enabled:
+            try:
+                ai_summary = self.ai_generate_project_summary(project_details, ai_analysis)
+                ai_data_analysis = self.ai_analyze_stars_and_forks(project_details)
+            except Exception as e:
+                print(f"⚠️  AI内容生成失败: {e}")
+        
+        # 生成快览信息
+        alert_content = f"**项目快览**: {name}是一个{category}项目，GitHub上{stars:,}个⭐，主要使用{language}开发"
+        if ai_score is not None:
+            alert_content += f"，AI质量评分: {ai_score:.2f}/1.0"
+        
+        # 生成文章开头
+        if ai_summary and ai_summary != "AI摘要生成未启用":
+            opening_paragraph = ai_summary
+        else:
+            opening_paragraph = f"**{name}**是一个备受关注的{category}项目，在GitHub上已获得{stars:,}个星标，展现出强劲的社区关注度和发展潜力。该项目主要使用{language}开发，为加密货币生态系统提供创新解决方案。"
+        
         # 生成文章内容
         content = f"""{{{{< alert >}}}}
-**项目快览**: {name}是一个{category}项目，GitHub上{stars:,}个⭐，主要使用{language}开发
+{alert_content}
 {{{{< /alert >}}}}
 
-**{name}**是一个备受关注的{category}项目，在GitHub上已获得{stars:,}个星标，展现出强劲的社区关注度和发展潜力。该项目主要使用{language}开发，为加密货币生态系统提供创新解决方案。
+{opening_paragraph}
 
 ## 🎯 项目概览
 
@@ -368,7 +636,16 @@ class CryptoProjectAnalyzer:
 该项目在GitHub上表现出良好的开发活跃度：
 - ⭐ **社区关注**: {stars:,}个星标显示了强劲的社区支持
 - 🔄 **代码贡献**: {forks:,}个Fork表明开发者积极参与
-- 📅 **持续更新**: 最近更新于{updated_at}，保持活跃开发状态
+- 📅 **持续更新**: 最近更新于{updated_at}，保持活跃开发状态"""
+        
+        # 添加AI数据分析
+        if ai_data_analysis and ai_data_analysis != "基于GitHub数据的标准分析":
+            content += f"""
+
+### 🤖 AI数据分析
+{ai_data_analysis}"""
+        
+        content += """
 
 ### 技术栈分析"""
 
@@ -399,6 +676,20 @@ class CryptoProjectAnalyzer:
         content += f"""
 
 ## 📊 项目评测
+"""
+        
+        # 添加AI质量分析部分
+        if ai_score is not None and ai_analysis:
+            quality_level = "优秀" if ai_score >= 0.8 else "良好" if ai_score >= 0.6 else "一般"
+            content += f"""
+### 🤖 AI智能评测
+**综合质量评分**: {ai_score:.2f}/1.0 ({quality_level})
+
+**AI分析报告**: {ai_analysis}
+
+基于AI深度分析，该项目在技术创新性、代码质量、社区活跃度、项目完整性和市场潜力等多个维度获得了{ai_score:.2f}的综合评分。"""
+        
+        content += f"""
 
 ### 🎯 核心优势
 1. **社区认可度高**: {stars:,}个GitHub星标证明了项目的受欢迎程度
@@ -433,7 +724,14 @@ class CryptoProjectAnalyzer:
 | GitHub Stars | {stars:,} | 社区关注度指标 |
 | Fork数量 | {forks:,} | 开发者参与度 |
 | 主要语言 | {language} | 技术栈核心 |
-| 项目年龄 | {(datetime.datetime.now() - datetime.datetime.strptime(created_at, '%Y-%m-%d')).days}天 | 项目成熟度参考 |
+| 项目年龄 | {(datetime.datetime.now() - datetime.datetime.strptime(created_at, '%Y-%m-%d')).days}天 | 项目成熟度参考 |"""
+        
+        # 如果有AI评分，添加到表格中
+        if ai_score is not None:
+            content += f"""
+| AI质量评分 | {ai_score:.2f}/1.0 | 综合技术质量评估 |"""
+        
+        content += """
 
 ---
 
@@ -464,7 +762,18 @@ def main():
         if not os.getenv('GITHUB_ACTIONS'):
             print("💡 提示: 请在 .env.local 文件中设置 GITHUB_TOKEN=your_token")
     
-    analyzer = CryptoProjectAnalyzer(github_token)
+    # 从环境变量获取GLM API key
+    glm_api_key = config.GLM_API_KEY
+    
+    if glm_api_key:
+        if not os.getenv('GITHUB_ACTIONS'):
+            print(f"✅ 已获取GLM API Key: {glm_api_key[:8]}...")
+    else:
+        print("⚠️  警告: 未设置GLM_API_KEY环境变量，AI分析功能将被禁用")
+        if not os.getenv('GITHUB_ACTIONS'):
+            print("💡 提示: 请设置环境变量 GLM_API_KEY=your_glm_api_key")
+    
+    analyzer = CryptoProjectAnalyzer(github_token, glm_api_key)
     
     print("🔍 开始搜索热门加密货币项目...")
     
@@ -621,6 +930,30 @@ hidden = false
     if generated_count > 0:
         print(f"\n🎉 完成！共生成 {generated_count} 篇评测文章")
         print(f"📊 累计已分析项目: {len(analyzed_projects) + len(newly_analyzed)} 个")
+        
+        # 显示GLM API使用统计
+        if analyzer.ai_enabled and analyzer.glm_logger:
+            print("\n🤖 GLM-4.5 API使用统计:")
+            stats = analyzer.glm_logger.get_daily_stats()
+            if "error" not in stats:
+                print(f"   ✅ 总调用次数: {stats['total_calls']}")
+                print(f"   ✅ 成功调用: {stats['successful_calls']}")
+                print(f"   ❌ 失败调用: {stats['failed_calls']}")
+                print(f"   🔢 消耗Token总数: {stats['total_tokens']:,}")
+                print(f"   📝 输入Token: {stats['prompt_tokens']:,}")
+                print(f"   📤 输出Token: {stats['completion_tokens']:,}")
+                
+                # 显示各函数调用统计
+                if stats['functions']:
+                    print("   📊 各功能调用统计:")
+                    for func_name, func_stats in stats['functions'].items():
+                        print(f"      • {func_name}: {func_stats['calls']}次调用, {func_stats['tokens']}个tokens")
+                
+                # 显示错误（如果有）
+                if stats['errors']:
+                    print(f"   ⚠️  发生 {len(stats['errors'])} 个错误")
+            else:
+                print(f"   ❌ 无法获取统计信息: {stats.get('error', '未知错误')}")
     else:
         print(f"\n⚠️  未能生成任何文章")
         print(f"💡 建议: 尝试扩大搜索范围或等待新项目出现")

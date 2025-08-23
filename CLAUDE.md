@@ -25,13 +25,23 @@ hugo --cleanDestinationDir --minify
 # Install dependencies
 pip install -r scripts/requirements.txt
 
-# Run crypto project analyzer
+# Setup environment (copy and configure API keys)
+cp scripts/.env.example scripts/.env.local
+# Edit .env.local to add GITHUB_TOKEN and GLM_API_KEY
+
+# Run AI-powered crypto project analyzer
 python scripts/crypto-project-analyzer.py
 
 # Manage project history
 python scripts/manage-history.py stats
 python scripts/manage-history.py list
 python scripts/manage-history.py search "keyword"
+
+# Environment variables (can also be set in .env.local):
+# GITHUB_TOKEN=your_github_token     # Optional, for higher API limits
+# GLM_API_KEY=your_glm_api_key      # Required for AI analysis
+# DAYS_BACK=7                       # Search recent N days (default: 7)
+# MAX_PROJECTS=3                    # Max projects per run (default: 3)
 ```
 
 ### Node.js Automation System
@@ -68,13 +78,20 @@ npm run validate:setup
 ### Automation Systems
 
 #### 1. Python-based GitHub Analysis (`scripts/`)
-- **Purpose**: Automatically analyzes trending crypto projects on GitHub
+- **Purpose**: AI-powered analysis of trending crypto projects on GitHub
+- **AI Integration**: Uses GLM-4.5 for intelligent project filtering and content generation
 - **Schedule**: Daily via GitHub Actions (UTC 16:00 / Beijing 00:00)
-- **Output**: Generates 3 professional review articles daily
+- **Output**: Generates 3 professional review articles daily with AI insights
+- **Key Features**:
+  - AI-based project quality assessment (0-1 scoring)
+  - Intelligent filtering of low-value/empty projects
+  - AI-generated project summaries and technical analysis
+  - Smart GitHub metrics interpretation
 - **Key Files**: 
-  - `crypto-project-analyzer.py` - Main analyzer
+  - `crypto-project-analyzer.py` - Main analyzer with AI integration
   - `manage-history.py` - Project history management
-  - `config.py` - Configuration settings
+  - `config.py` - Configuration settings including AI parameters
+  - `.env.example` - Environment configuration template
 
 #### 2. Node.js Twitter Automation (`automation/`)
 - **Purpose**: Discovers trending crypto content on Twitter, translates to Chinese
@@ -125,6 +142,8 @@ All articles follow the template in `md-template.md` with:
 ### API Keys and Secrets
 - GitHub token automatically provided by GitHub Actions
 - Twitter API keys stored in GitHub Secrets for the automation system
+- **GLM_API_KEY**: 智谱AI GLM-4.5 API密钥，用于AI分析功能 (environment variable)
+- **Setup**: Copy `scripts/.env.example` to `scripts/.env.local` and configure your API keys
 - No hardcoded credentials in the codebase
 
 ### Content Quality
