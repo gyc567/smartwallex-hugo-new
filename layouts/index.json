@@ -1,13 +1,23 @@
 {{- $pages := slice -}}
-{{- range .Site.RegularPages -}}
-    {{- $tags := slice -}}
-    {{- if .Params.tags -}}
-        {{- $tags = .Params.tags -}}
+{{- range where .Site.RegularPages "Section" "posts" -}}
+    {{- if not .Draft -}}
+        {{- $tags := slice -}}
+        {{- if .Params.tags -}}
+            {{- $tags = .Params.tags -}}
+        {{- end -}}
+        {{- $summary := "" -}}
+        {{- if .Summary -}}
+            {{- $summary = .Summary -}}
+        {{- end -}}
+        {{- $pages = $pages | append (dict 
+            "title" .Title 
+            "content" .Plain 
+            "permalink" .Permalink 
+            "summary" $summary 
+            "tags" $tags 
+            "date" (.Date.Format "2006-01-02")
+            "section" .Section
+        ) -}}
     {{- end -}}
-    {{- $summary := "" -}}
-    {{- if .Summary -}}
-        {{- $summary = .Summary -}}
-    {{- end -}}
-    {{- $pages = $pages | append (dict "title" .Title "content" .Plain "permalink" .Permalink "summary" $summary "tags" $tags) -}}
 {{- end -}}
 {{- $pages | jsonify -}}

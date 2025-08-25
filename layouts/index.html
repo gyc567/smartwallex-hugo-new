@@ -23,7 +23,7 @@
     <section class="posts-section">
         <h2>最新文章</h2>
         <div class="posts-grid">
-            {{ range first 6 (where .Site.RegularPages "Type" "posts") }}
+            {{ range first 6 (where .Site.RegularPages "Section" "posts") }}
             <article class="post-card">
                 <h3><a href="{{ .Permalink }}">{{ .Title }}</a></h3>
                 <div class="post-meta">
