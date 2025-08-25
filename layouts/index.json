@@ -9,15 +9,7 @@
         {{- if .Summary -}}
             {{- $summary = .Summary -}}
         {{- end -}}
-        {{- $pages = $pages | append (dict 
-            "title" .Title 
-            "content" .Plain 
-            "permalink" .Permalink 
-            "summary" $summary 
-            "tags" $tags 
-            "date" (.Date.Format "2006-01-02")
-            "section" .Section
-        ) -}}
+        {{- $pages = $pages | append (dict "title" .Title "content" .Plain "permalink" .Permalink "summary" $summary "tags" $tags "date" (.Date.Format "2006-01-02") "section" .Section) -}}
     {{- end -}}
 {{- end -}}
 {{- $pages | jsonify -}}
