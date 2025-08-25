@@ -1,0 +1,262 @@
+{{ define "main" }}
+<div class="search-container">
+    <header class="page-header">
+        <h1>{{- (printf "%s&nbsp;" .Title ) | htmlUnescape -}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </h1>
+        {{- if .Description }}
+        <div class="post-description">
+            {{ .Description }}
+        </div>
+        {{- end }}
+    </header>
+
+    <div id="searchbox">
+        <input id="searchInput" autofocus placeholder="{{ .Params.placeholder | default (printf "%s ↵" .Title) }}"
+            aria-label="search" type="search" autocomplete="off" maxlength="64">
+        <ul id="searchResults" aria-label="search results"></ul>
+    </div>
+</div>
+
+<!-- 搜索功能脚本 -->
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+<script src="/search-index.js"></script>
+<script>
+// 搜索功能实现
+let fuse; // 搜索引擎
+let searchResults = document.getElementById('searchResults');
+let searchInput = document.getElementById('searchInput');
+let searchIndex = [];
+
+// 加载搜索索引
+window.addEventListener('DOMContentLoaded', function() {
+    // 使用统一的搜索索引加载接口（支持备用方案）
+    if (window.getSearchIndex) {
+        window.getSearchIndex()
+            .then(data => {
+                searchIndex = data;
+                console.log('搜索索引加载成功，共 ' + data.length + ' 篇文章');
+                
+                // 配置Fuse.js选项
+                const options = {
+                    includeScore: true,
+                    keys: [
+                        { name: 'title', weight: 2 },
+                        { name: 'content', weight: 1 },
+                        { name: 'tags', weight: 1.5 },
+                        { name: 'summary', weight: 1.2 }
+                    ],
+                    threshold: 0.4,
+                    distance: 100,
+                    minMatchCharLength: 2
+                };
+                
+                fuse = new Fuse(data, options);
+            })
+            .catch(error => {
+                console.error('搜索索引加载失败:', error);
+                searchResults.innerHTML = '<li class="search-error">搜索功能暂时不可用，请稍后再试。</li>';
+            });
+    } else {
+        console.error('搜索索引加载器不可用');
+        searchResults.innerHTML = '<li class="search-error">搜索功能暂时不可用，请稍后再试。</li>';
+    }
+});
+
+// 搜索输入处理
+if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            searchResults.style.display = 'none';
+            return;
+        }
+        
+        if (!fuse) {
+            searchResults.innerHTML = '<li class="search-loading">搜索索引加载中...</li>';
+            searchResults.style.display = 'block';
+            return;
+        }
+        
+        performSearch(query);
+    });
+}
+
+function performSearch(query) {
+    const results = fuse.search(query);
+    
+    if (results.length === 0) {
+        searchResults.innerHTML = '<li class="no-results">未找到相关内容</li>';
+    } else {
+        let html = '';
+        results.slice(0, 10).forEach(result => {
+            const item = result.item;
+            const score = Math.round((1 - result.score) * 100);
+            
+            html += `
+                <li class="search-result">
+                    <a href="${item.permalink}" class="result-link">
+                        <div class="result-title">${highlightText(item.title, query)}</div>
+                        <div class="result-summary">${highlightText(item.summary || '', query)}</div>
+                        <div class="result-meta">
+                            <span class="result-date">${item.date}</span>
+                            <span class="result-score">匹配度: ${score}%</span>
+                        </div>
+                    </a>
+                </li>
+            `;
+        });
+        
+        searchResults.innerHTML = html;
+    }
+    
+    searchResults.style.display = 'block';
+}
+
+function highlightText(text, query) {
+    if (!text || !query) return text;
+    
+    const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 点击外部关闭搜索结果
+document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.style.display = 'none';
+    }
+});
+</script>
+
+<style>
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+#searchbox {
+    position: relative;
+    margin: 2rem 0;
+}
+
+#searchInput {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+#searchInput:focus {
+    border-color: #007acc;
+}
+
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.search-result {
+    border-bottom: 1px solid #eee;
+}
+
+.search-result:last-child {
+    border-bottom: none;
+}
+
+.result-link {
+    display: block;
+    padding: 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.3s ease;
+}
+
+.result-link:hover {
+    background-color: #f5f5f5;
+}
+
+.result-title {
+    font-weight: bold;
+    color: #007acc;
+    margin-bottom: 0.5rem;
+}
+
+.result-summary {
+    color: #666;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+
+.result-meta {
+    font-size: 0.9rem;
+    color: #999;
+    display: flex;
+    justify-content: space-between;
+}
+
+.no-results, .search-loading, .search-error {
+    padding: 1rem;
+    text-align: center;
+    color: #666;
+}
+
+.search-error {
+    color: #e74c3c;
+}
+
+mark {
+    background-color: #ffeb3b;
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* 暗色主题支持 */
+[data-theme="dark"] #searchResults {
+    background: #2d2d2d;
+    border-color: #555;
+    color: #fff;
+}
+
+[data-theme="dark"] .result-link:hover {
+    background-color: #404040;
+}
+
+[data-theme="dark"] #searchInput {
+    background: #2d2d2d;
+    color: #fff;
+    border-color: #555;
+}
+
+[data-theme="dark"] mark {
+    background-color: #ffa000;
+    color: #000;
+}
+</style>
+{{ end }}

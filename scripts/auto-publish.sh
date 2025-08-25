@@ -42,11 +42,19 @@ fi
 
 # 3. 构建Hugo网站
 echo "🏗️  构建Hugo网站..." | tee -a "$LOG_FILE"
-if hugo --cleanDestinationDir >> "$LOG_FILE" 2>&1; then
+if hugo --cleanDestinationDir --minify >> "$LOG_FILE" 2>&1; then
     echo "✅ 网站构建完成" | tee -a "$LOG_FILE"
 else
     echo "❌ 网站构建失败，查看日志: $LOG_FILE" | tee -a "$LOG_FILE"
     exit 1
+fi
+
+# 3.1 生成备用搜索索引
+echo "🔍 生成备用搜索索引..." | tee -a "$LOG_FILE"
+if ./scripts/generate-search-backup.sh >> "$LOG_FILE" 2>&1; then
+    echo "✅ 备用搜索索引生成完成" | tee -a "$LOG_FILE"
+else
+    echo "⚠️  备用搜索索引生成失败，但不影响主要流程" | tee -a "$LOG_FILE"
 fi
 
 # 4. Git操作
