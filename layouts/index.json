@@ -9,7 +9,8 @@
         {{- if .Summary -}}
             {{- $summary = .Summary -}}
         {{- end -}}
-        {{- $page := dict "title" .Title "content" .Plain "permalink" .Permalink "summary" $summary "tags" $tags "date" (.Date.Format "2006-01-02") "section" .Section -}}
+        {{- $dateFormatted := .Date.Format "2006-01-02" -}}
+        {{- $page := dict "title" .Title "content" .Plain "permalink" .Permalink "summary" $summary "tags" $tags "date" $dateFormatted "section" .Section -}}
         {{- $pages = $pages | append $page -}}
     {{- end -}}
 {{- end -}}
