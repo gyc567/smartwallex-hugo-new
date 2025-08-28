@@ -387,7 +387,7 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         
         projects = []
         for keyword in crypto_keywords[:3]:
-            projects.extend(self._search_github(f'{keyword} created:>{date_filter} stars:>5'))
+            projects.extend(self._search_github(f'{keyword} created:>{date_filter} stars:>1000'))
         
         return projects
     
@@ -401,7 +401,7 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         
         projects = []
         for keyword in activity_keywords[:2]:
-            projects.extend(self._search_github(f'{keyword} pushed:>{date_filter} stars:>10'))
+            projects.extend(self._search_github(f'{keyword} pushed:>{date_filter} stars:>1000'))
         
         return projects
     
@@ -411,16 +411,16 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         
         projects = []
         for keyword in trending_keywords[:2]:
-            projects.extend(self._search_github(f'{keyword} stars:>5'))
+            projects.extend(self._search_github(f'{keyword} stars:>1000'))
         
         return projects
     
     def _search_by_language_specific(self, days_back: int) -> List[Dict[str, Any]]:
         """按编程语言搜索"""
         language_queries = [
-            'solidity cryptocurrency stars:>10',
-            'rust blockchain stars:>10',
-            'javascript web3 stars:>10'
+            'solidity cryptocurrency stars:>1000',
+            'rust blockchain stars:>1000',
+            'javascript web3 stars:>1000'
         ]
         
         projects = []
@@ -456,7 +456,7 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
     def _is_quality_project(self, project: Dict[str, Any]) -> bool:
         """判断项目是否符合质量标准"""
         # 基本质量检查
-        if project['stargazers_count'] < 5:
+        if project['stargazers_count'] < 1000:
             return False
         
         # 检查是否有描述
