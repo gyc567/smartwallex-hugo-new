@@ -582,6 +582,9 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         homepage = basic_info.get('homepage', '')
         github_url = basic_info['html_url']
         
+        # 获取zread.ai解析信息
+        zread_info = self.get_zread_info(github_url)
+        
         # 获取AI分析结果
         ai_score = basic_info.get('ai_score')
         ai_analysis = basic_info.get('ai_analysis', '')
@@ -620,7 +623,7 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
 - **项目名称**: {name}
 - **项目类型**: {category}
 - **开发语言**: {language}
-- **GitHub地址**: [{github_url}]({github_url})
+- **GitHub地址**: [{github_url}]({github_url}){f" | [zread.ai解析]({zread_info['url']})" if zread_info['url'] else ""}
 - **GitHub Stars**: {stars:,}
 - **Fork数量**: {forks:,}
 - **创建时间**: {created_at}
@@ -629,6 +632,8 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
 
 ### 项目描述
 {description}
+
+{f"**智能解析**: {zread_info['description']}" if zread_info['description'] else ""}
 
 ## 🛠️ 技术特点
 
@@ -738,6 +743,28 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
 *本评测基于GitHub公开数据分析生成，不构成投资建议。加密货币项目投资存在高风险，请谨慎决策并做好充分研究。*"""
 
         return content
+
+    def get_zread_info(self, github_url: str) -> Dict[str, str]:
+        """获取zread.ai的项目解析信息"""
+        try:
+            # 从GitHub URL提取owner/repo
+            # 例如: https://github.com/moeru-ai/airi -> moeru-ai/airi
+            if 'github.com/' in github_url:
+                parts = github_url.split('github.com/')[-1].strip('/')
+                if '/' in parts:
+                    owner_repo = '/'.join(parts.split('/')[:2])  # 只取前两部分
+                    zread_url = f"https://zread.ai/{owner_repo}"
+                    
+                    # 简单获取描述信息（这里可以扩展为实际的网页抓取）
+                    # 为了保持简单，先返回构造的URL和占位符描述
+                    return {
+                        'url': zread_url,
+                        'description': f"通过zread.ai查看{owner_repo}项目的智能解析"
+                    }
+        except Exception as e:
+            print(f"⚠️ 生成zread.ai信息失败: {e}")
+        
+        return {'url': '', 'description': ''}
 
 def main():
     """主函数"""
