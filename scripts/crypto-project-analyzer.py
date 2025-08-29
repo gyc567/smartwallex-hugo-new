@@ -375,10 +375,11 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         return sorted_projects[:max_projects]
     
     def _search_by_creation_date(self, days_back: int) -> List[Dict[str, Any]]:
-        """按创建日期搜索新项目"""
+        """按创建日期搜索新项目（最近半年活跃）"""
         end_date = datetime.datetime.now()
-        start_date = end_date - datetime.timedelta(days=days_back)
-        date_filter = start_date.strftime('%Y-%m-%d')
+        # 搜索最近半年有活动的项目
+        activity_date = end_date - datetime.timedelta(days=180)
+        activity_filter = activity_date.strftime('%Y-%m-%d')
         
         crypto_keywords = [
             'cryptocurrency', 'blockchain', 'bitcoin', 'ethereum', 
@@ -387,40 +388,52 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
         
         projects = []
         for keyword in crypto_keywords[:3]:
-            projects.extend(self._search_github(f'{keyword} created:>{date_filter} stars:>1000'))
+            # 搜索最近半年活跃且stars>1000的项目
+            projects.extend(self._search_github(f'{keyword} pushed:>{activity_filter} stars:>1000'))
         
         return projects
     
     def _search_by_recent_activity(self, days_back: int) -> List[Dict[str, Any]]:
-        """按最近活动搜索项目"""
+        """按最近活动搜索项目（最近半年活跃）"""
         end_date = datetime.datetime.now()
-        start_date = end_date - datetime.timedelta(days=days_back)
-        date_filter = start_date.strftime('%Y-%m-%d')
+        # 搜索最近半年有活动的项目
+        activity_date = end_date - datetime.timedelta(days=180)
+        activity_filter = activity_date.strftime('%Y-%m-%d')
         
         activity_keywords = ['trading', 'wallet', 'exchange', 'nft', 'dao']
         
         projects = []
         for keyword in activity_keywords[:2]:
-            projects.extend(self._search_github(f'{keyword} pushed:>{date_filter} stars:>1000'))
+            projects.extend(self._search_github(f'{keyword} pushed:>{activity_filter} stars:>1000'))
         
         return projects
     
     def _search_by_trending(self, days_back: int) -> List[Dict[str, Any]]:
-        """搜索趋势项目"""
+        """搜索趋势项目（最近半年活跃）"""
+        end_date = datetime.datetime.now()
+        # 搜索最近半年有活动的项目
+        activity_date = end_date - datetime.timedelta(days=180)
+        activity_filter = activity_date.strftime('%Y-%m-%d')
+        
         trending_keywords = ['mev', 'arbitrage', 'yield', 'staking', 'bridge']
         
         projects = []
         for keyword in trending_keywords[:2]:
-            projects.extend(self._search_github(f'{keyword} stars:>1000'))
+            projects.extend(self._search_github(f'{keyword} pushed:>{activity_filter} stars:>1000'))
         
         return projects
     
     def _search_by_language_specific(self, days_back: int) -> List[Dict[str, Any]]:
-        """按编程语言搜索"""
+        """按编程语言搜索（最近半年活跃）"""
+        end_date = datetime.datetime.now()
+        # 搜索最近半年有活动的项目
+        activity_date = end_date - datetime.timedelta(days=180)
+        activity_filter = activity_date.strftime('%Y-%m-%d')
+        
         language_queries = [
-            'solidity cryptocurrency stars:>1000',
-            'rust blockchain stars:>1000',
-            'javascript web3 stars:>1000'
+            f'solidity cryptocurrency pushed:>{activity_filter} stars:>1000',
+            f'rust blockchain pushed:>{activity_filter} stars:>1000',
+            f'javascript web3 pushed:>{activity_filter} stars:>1000'
         ]
         
         projects = []
