@@ -76,15 +76,22 @@ jobs:
         CURRENT_DATE=$(date '+%Y-%m-%d')
         CURRENT_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
         
-        git commit -m "feat(lookonchain): ${CURRENT_DATE} LookOnChain每日分析
+        cat > /tmp/commit_msg << 'EOF'
+        feat(lookonchain): ${CURRENT_DATE} LookOnChain每日分析
 
-🤖 自动生成的LookOnChain文章分析
-📅 执行时间: ${CURRENT_TIME}
-🔗 数据来源: https://www.lookonchain.com
+        自动生成的LookOnChain文章分析
+        执行时间: ${CURRENT_TIME}
+        数据来源: https://www.lookonchain.com
 
-🤖 Generated with [Claude Code](https://claude.ai/code)
+        Generated with Claude Code
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
+        Co-Authored-By: Claude <noreply@anthropic.com>
+        EOF
+        
+        # 替换变量并提交
+        sed -i "s/\${CURRENT_DATE}/$CURRENT_DATE/g" /tmp/commit_msg
+        sed -i "s/\${CURRENT_TIME}/$CURRENT_TIME/g" /tmp/commit_msg
+        git commit -F /tmp/commit_msg
         git push origin main
         echo "✅ 成功推送到远程仓库"
 
