@@ -1,0 +1,246 @@
+name: LookOnChain 每日文章分析
+
+# 每日早上6点（北京时间）执行，对应UTC时间22:00
+on:
+  schedule:
+    - cron: '0 22 * * *'  # UTC 22:00 = 北京时间 06:00
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  lookonchain-analysis:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('scripts/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install Python dependencies
+      run: |
+        cd scripts
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # 安装额外依赖
+        pip install beautifulsoup4>=4.12.0 lxml>=4.9.0
+    
+    - name: Verify environment
+      run: |
+        echo "Python version: $(python --version)"
+        echo "Current time: $(date)"
+        echo "Beijing time: $(TZ='Asia/Shanghai' date)"
+        echo "Working directory: $(pwd)"
+        ls -la scripts/
+    
+    - name: Check required files
+      run: |
+        echo "Checking LookOnChain analyzer files..."
+        if [ -f "scripts/lookonchain_analyzer.py" ]; then
+          echo "✅ Main analyzer script exists"
+        else
+          echo "❌ Main analyzer script missing"
+          exit 1
+        fi
+        
+        if [ -d "scripts/lookonchain" ]; then
+          echo "✅ LookOnChain module directory exists"
+          ls -la scripts/lookonchain/
+        else
+          echo "❌ LookOnChain module directory missing"
+          exit 1
+        fi
+        
+        if [ -f "scripts/glm_logger.py" ]; then
+          echo "✅ GLM logger exists"
+        else
+          echo "⚠️ GLM logger not found, creating minimal version"
+          cat > scripts/glm_logger.py << 'EOF'
+        """
+        Minimal GLM Logger for GitHub Actions
+        """
+        import datetime
+        from openai import OpenAI
+
+        class GLMLogger:
+            def __init__(self):
+                self.stats = {"total_calls": 0, "successful_calls": 0, "failed_calls": 0, "total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0}
+            
+            def get_daily_stats(self):
+                return self.stats
+
+        class GLMClientWrapper:
+            def __init__(self, api_key, base_url, logger):
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+                self.logger = logger
+            
+            def chat_completions_create(self, **kwargs):
+                try:
+                    response = self.client.chat.completions.create(**kwargs)
+                    self.logger.stats["total_calls"] += 1
+                    self.logger.stats["successful_calls"] += 1
+                    if hasattr(response, 'usage'):
+                        self.logger.stats["total_tokens"] += response.usage.total_tokens
+                        self.logger.stats["prompt_tokens"] += response.usage.prompt_tokens
+                        self.logger.stats["completion_tokens"] += response.usage.completion_tokens
+                    return response
+                except Exception as e:
+                    self.logger.stats["total_calls"] += 1
+                    self.logger.stats["failed_calls"] += 1
+                    raise e
+        EOF
+        fi
+    
+    - name: Run LookOnChain analysis
+      env:
+        GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_ACTIONS: true
+      run: |
+        cd scripts
+        echo "🚀 开始执行 LookOnChain 分析任务..."
+        
+        # 设置中文环境
+        export LANG=zh_CN.UTF-8
+        export LC_ALL=zh_CN.UTF-8
+        
+        # 执行分析脚本
+        python lookonchain_analyzer.py
+        
+        echo "📊 LookOnChain 分析任务完成"
+    
+    - name: Check generated content
+      run: |
+        echo "🔍 检查生成的内容..."
+        
+        if [ -d "content/posts" ]; then
+          echo "📁 Posts directory exists"
+          
+          # 检查今天是否有新文章生成
+          TODAY=$(date +%Y-%m-%d)
+          NEW_ARTICLES=$(find content/posts -name "*lookonchain*${TODAY}*" -type f | wc -l)
+          
+          if [ "$NEW_ARTICLES" -gt 0 ]; then
+            echo "✅ 今日生成了 ${NEW_ARTICLES} 篇 LookOnChain 文章"
+            find content/posts -name "*lookonchain*${TODAY}*" -type f -exec basename {} \;
+          else
+            echo "ℹ️ 今日未生成新的 LookOnChain 文章"
+            # 检查最近的文章
+            echo "📋 最近的 LookOnChain 文章："
+            find content/posts -name "*lookonchain*" -type f -printf '%T@ %p\n' | sort -nr | head -5 | cut -d' ' -f2- | xargs -I {} basename {}
+          fi
+        else
+          echo "❌ Posts directory not found"
+        fi
+        
+        # 检查数据文件
+        if [ -f "data/lookonchain_articles.json" ]; then
+          echo "✅ LookOnChain 历史数据文件存在"
+          echo "📊 历史记录统计："
+          python -c "
+        import json
+        try:
+            with open('data/lookonchain_articles.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                print(f'  总文章数: {data.get(\"total_articles\", 0)}')
+                print(f'  最后更新: {data.get(\"last_updated\", \"未知\")}')
+        except Exception as e:
+            print(f'  读取失败: {e}')
+        "
+        else
+          echo "ℹ️ LookOnChain 历史数据文件不存在"
+        fi
+    
+    - name: Commit and push changes
+      if: success()
+      run: |
+        # 配置git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # 检查是否有变更
+        if git diff --quiet && git diff --cached --quiet; then
+          echo "📝 没有文件变更，跳过提交"
+        else
+          echo "📝 发现文件变更，准备提交..."
+          
+          # 添加所有变更
+          git add -A
+          
+          # 生成提交信息
+          BEIJING_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S')
+          COMMIT_MESSAGE="feat(lookonchain): 每日LookOnChain文章分析 - ${BEIJING_TIME}
+
+        🤖 Generated with [Claude Code](https://claude.ai/code)
+
+        Co-Authored-By: Claude <noreply@anthropic.com>"
+          
+          # 提交变更
+          git commit -m "$COMMIT_MESSAGE"
+          
+          # 推送到远程仓库
+          git push origin main
+          
+          echo "✅ 变更已提交并推送到远程仓库"
+        fi
+    
+    - name: Generate job summary
+      if: always()
+      run: |
+        echo "## 📊 LookOnChain 分析任务总结" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **执行时间**: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S') (北京时间)" >> $GITHUB_STEP_SUMMARY
+        echo "- **任务状态**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "content/posts" ]; then
+          TODAY=$(date +%Y-%m-%d)
+          NEW_ARTICLES=$(find content/posts -name "*lookonchain*${TODAY}*" -type f | wc -l)
+          echo "- **今日生成文章**: ${NEW_ARTICLES} 篇" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "data/lookonchain_articles.json" ]; then
+          TOTAL_ARTICLES=$(python -c "
+        import json
+        try:
+            with open('data/lookonchain_articles.json', 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                print(data.get('total_articles', 0))
+        except:
+            print(0)
+        ")
+          echo "- **历史文章总数**: ${TOTAL_ARTICLES} 篇" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📝 工作流说明" >> $GITHUB_STEP_SUMMARY
+        echo "本工作流每日北京时间早上6点自动执行，从 LookOnChain 获取最新文章并翻译为中文。" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- 🕕 **执行时间**: 每日北京时间 06:00" >> $GITHUB_STEP_SUMMARY
+        echo "- 📰 **文章来源**: [LookOnChain](https://www.lookonchain.com)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔄 **处理流程**: 爬取 → 翻译 → 生成 Hugo 文章" >> $GITHUB_STEP_SUMMARY
+        echo "- 🤖 **AI 支持**: 使用 GLM-4.5 进行翻译和摘要生成" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Notification on failure
+      if: failure()
+      run: |
+        echo "❌ LookOnChain 分析任务执行失败"
+        echo "请检查日志并排查问题"
+        echo ""
+        echo "可能的原因："
+        echo "1. GLM API 配额不足或密钥失效"
+        echo "2. LookOnChain 网站结构变化"
+        echo "3. 网络连接问题"
+        echo "4. Python 依赖包问题"
