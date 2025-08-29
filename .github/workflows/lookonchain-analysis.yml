@@ -1,9 +1,10 @@
 name: LookOnChain 每日文章分析
 
-# 每日早上6点（北京时间）执行，对应UTC时间22:00
+# 每日早上6点和下午2点半（北京时间）执行
 on:
   schedule:
     - cron: '0 22 * * *'  # UTC 22:00 = 北京时间 06:00
+    - cron: '30 6 * * *'  # UTC 06:30 = 北京时间 14:30
   workflow_dispatch:  # 允许手动触发
 
 jobs:
@@ -226,9 +227,9 @@ jobs:
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📝 工作流说明" >> $GITHUB_STEP_SUMMARY
-        echo "本工作流每日北京时间早上6点自动执行，从 LookOnChain 获取最新文章并翻译为中文。" >> $GITHUB_STEP_SUMMARY
+        echo "本工作流每日北京时间早上6点和下午2点半自动执行，从 LookOnChain 获取最新文章并翻译为中文。" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- 🕕 **执行时间**: 每日北京时间 06:00" >> $GITHUB_STEP_SUMMARY
+        echo "- 🕕 **执行时间**: 每日北京时间 06:00 和 14:30" >> $GITHUB_STEP_SUMMARY
         echo "- 📰 **文章来源**: [LookOnChain](https://www.lookonchain.com)" >> $GITHUB_STEP_SUMMARY
         echo "- 🔄 **处理流程**: 爬取 → 翻译 → 生成 Hugo 文章" >> $GITHUB_STEP_SUMMARY
         echo "- 🤖 **AI 支持**: 使用 GLM-4.5 进行翻译和摘要生成" >> $GITHUB_STEP_SUMMARY
