@@ -10,6 +10,9 @@ on:
 jobs:
   lookonchain-analysis:
     runs-on: ubuntu-latest
+    environment: production  # 使用 production 环境的 secrets
+    env:
+      GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
     
     steps:
     - name: Checkout repository
@@ -104,18 +107,28 @@ jobs:
         EOF
         fi
     
+    - name: Check GLM_API_KEY availability
+      run: |
+        if [ -z "$GLM_API_KEY" ]; then
+          echo "❌ 错误: GLM_API_KEY 未设置"
+          echo "请在 GitHub Secrets 中设置 GLM_API_KEY"
+          echo "设置路径: Settings → Secrets and variables → Actions → Repository secrets"
+          exit 1
+        else
+          echo "✅ GLM_API_KEY 已正确配置"
+        fi
+    
     - name: Run LookOnChain analysis
       env:
-        GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTIONS: true
       run: |
         cd scripts
         echo "🚀 开始执行 LookOnChain 分析任务..."
         
-        # 设置中文环境
-        export LANG=zh_CN.UTF-8
-        export LC_ALL=zh_CN.UTF-8
+        # 设置中文环境（使用可用的 locale）
+        export LANG=C.UTF-8
+        export LC_ALL=C.UTF-8
         
         # 执行分析脚本
         python lookonchain_analyzer.py
