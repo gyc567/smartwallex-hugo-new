@@ -11,7 +11,7 @@ import hashlib
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse
 from .config import (
-    LOOKONCHAIN_FEEDS_URL, USER_AGENT, REQUEST_TIMEOUT, 
+    LOOKONCHAIN_BASE_URL, LOOKONCHAIN_FEEDS_URL, USER_AGENT, REQUEST_TIMEOUT, 
     MAX_RETRIES, RETRY_DELAY, ARTICLE_MIN_LENGTH, ARTICLE_MAX_LENGTH
 )
 
@@ -55,30 +55,46 @@ class LookOnChainScraper:
         articles = []
         
         try:
-            # 根据 LookOnChain 网站结构提取文章
-            # 这里需要分析网站的实际DOM结构来确定选择器
-            article_selectors = [
-                'article',  # 标准文章标签
-                '.post', '.article', '.news-item',  # 常见的文章class
-                '[class*="feed"], [class*="item"], [class*="post"]'  # 包含相关关键词的class
-            ]
-            
-            for selector in article_selectors:
-                article_elements = soup.select(selector)
-                if article_elements:
-                    print(f"📰 找到 {len(article_elements)} 个文章元素 (选择器: {selector})")
-                    break
+            # 根据实际分析的 LookOnChain 网站结构提取文章
+            # 首先尝试主要的文章列表容器
+            feeds_container = soup.select_one('#index_feeds_list')
+            if feeds_container:
+                print("📰 找到主要文章列表容器 #index_feeds_list")
+                article_elements = feeds_container.select('a[href*="/articles/"]')
             else:
-                # 如果没有找到标准结构，尝试查找包含链接的元素
-                article_elements = soup.select('a[href*="article"], a[href*="post"], a[href*="news"]')
-                if not article_elements:
-                    # 最后尝试：查找所有包含文本内容的链接
-                    article_elements = soup.select('a[href]')
-                    article_elements = [elem for elem in article_elements if elem.get_text().strip()][:10]
+                # 备选方案：直接查找文章链接
+                article_elements = soup.select('a[href*="/articles/"]')
+            
+            if article_elements:
+                print(f"📰 找到 {len(article_elements)} 个文章链接")
+            else:
+                # 如果没有找到文章链接，尝试其他可能的选择器
+                fallback_selectors = [
+                    'a[href*="article"]',  # 包含article的链接
+                    'a[href*="post"]',     # 包含post的链接
+                    'article a',           # 在article标签内的链接
+                    '.post a', '.article a', '.news-item a',  # 在常见文章class内的链接
+                ]
+                
+                for selector in fallback_selectors:
+                    article_elements = soup.select(selector)
+                    if article_elements:
+                        print(f"📰 通过备选方案找到 {len(article_elements)} 个文章元素 (选择器: {selector})")
+                        break
+                else:
+                    print("⚠️ 未找到任何文章链接，将分析页面结构")
+                    # 调试：输出页面的主要链接
+                    all_links = soup.select('a[href]')[:10]
+                    print("🔍 页面前10个链接:")
+                    for i, link in enumerate(all_links, 1):
+                        href = link.get('href', '')
+                        text = link.get_text().strip()[:50]
+                        print(f"   {i}. {href} - {text}")
+                    article_elements = []
             
             for element in article_elements[:5]:  # 只处理前5个元素，确保有足够候选
                 try:
-                    # 提取链接
+                    # 确保element是链接元素
                     link_elem = element if element.name == 'a' else element.find('a')
                     if not link_elem:
                         continue
@@ -88,23 +104,36 @@ class LookOnChainScraper:
                         continue
                     
                     # 确保是完整URL
-                    full_url = urljoin(LOOKONCHAIN_FEEDS_URL, href)
+                    full_url = urljoin(LOOKONCHAIN_BASE_URL, href)
                     
-                    # 提取标题
-                    title = ''
-                    title_elem = element.find(['h1', 'h2', 'h3', 'h4', '.title', '[class*="title"]'])
-                    if title_elem:
-                        title = title_elem.get_text().strip()
-                    else:
-                        title = link_elem.get_text().strip()
+                    # 提取标题 - 根据LookOnChain网站结构，标题通常在链接文本中
+                    title = link_elem.get_text().strip()
                     
-                    # 提取摘要
+                    # 如果标题为空或过短，尝试其他方法
+                    if not title or len(title) < 10:
+                        # 尝试查找父容器中的标题元素
+                        parent = link_elem.parent
+                        if parent:
+                            title_candidates = parent.select('.title, [class*="title"], h1, h2, h3, h4')
+                            for candidate in title_candidates:
+                                candidate_text = candidate.get_text().strip()
+                                if candidate_text and len(candidate_text) > 10:
+                                    title = candidate_text
+                                    break
+                    
+                    # 清理标题中的日期等额外信息
+                    if title:
+                        # 移除日期格式如 "2025.01.22"
+                        import re
+                        title = re.sub(r'\d{4}\.\d{2}\.\d{2}', '', title).strip()
+                        # 移除多余的空白字符
+                        title = ' '.join(title.split())
+                    
+                    # 提取摘要 - 在LookOnChain中可能不容易获取，先设为空
                     summary = ''
-                    summary_elem = element.find(['.summary', '.excerpt', '.description', 'p'])
-                    if summary_elem:
-                        summary = summary_elem.get_text().strip()[:200]
                     
-                    if title and len(title) > 10:  # 确保标题有意义
+                    # 验证文章URL格式
+                    if '/articles/' in href and title and len(title) > 10:
                         article_info = {
                             'title': title,
                             'url': full_url,
@@ -112,6 +141,7 @@ class LookOnChainScraper:
                             'id': hashlib.md5(full_url.encode()).hexdigest()[:12]
                         }
                         articles.append(article_info)
+                        print(f"✅ 提取文章: {title[:50]}...")
                         
                 except Exception as e:
                     print(f"⚠️ 解析文章元素失败: {e}")
