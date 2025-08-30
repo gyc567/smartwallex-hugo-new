@@ -4,6 +4,22 @@ LookOnChain 模块配置文件
 
 import os
 
+# 在 GitHub Actions 环境外尝试加载 .env.local 文件
+if not os.getenv('GITHUB_ACTIONS'):
+    env_local_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env.local')
+    if os.path.exists(env_local_path):
+        try:
+            with open(env_local_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        # 只有当环境变量不存在时才设置
+                        if not os.getenv(key.strip()):
+                            os.environ[key.strip()] = value.strip()
+        except Exception as e:
+            pass  # 静默处理，避免重复警告
+
 # LookOnChain 网站配置
 LOOKONCHAIN_BASE_URL = "https://www.lookonchain.com"
 LOOKONCHAIN_FEEDS_URL = f"{LOOKONCHAIN_BASE_URL}/index.aspx"
