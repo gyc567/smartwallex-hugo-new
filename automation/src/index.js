@@ -50,6 +50,10 @@ class TwitterCryptoAutomation {
       await this.logger.logSystemInfo();
       this.stats.startTime = new Date();
 
+      // Initialize error handler first (needed for executeWithErrorHandling)
+      this.errorHandler = new ErrorHandler(this.logger, null);
+      await this.logger.info('Error handler initialized');
+
       // Load configuration
       this.config = await this.executeWithErrorHandling(
         () => ConfigLoader.load(),
@@ -61,12 +65,10 @@ class TwitterCryptoAutomation {
       // Initialize notification service
       if (this.config.notifications) {
         this.notificationService = new NotificationService(this.config.notifications, this.logger);
+        // Update error handler with notification service
+        this.errorHandler = new ErrorHandler(this.logger, this.notificationService);
         await this.logger.info('Notification service initialized');
       }
-
-      // Initialize error handler
-      this.errorHandler = new ErrorHandler(this.logger, this.notificationService);
-      await this.logger.info('Error handler initialized');
 
       // Initialize components with error handling
       await this.initializeComponents();
