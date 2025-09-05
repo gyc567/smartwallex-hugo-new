@@ -62,56 +62,68 @@ def extract_content_from_response(response: Any, debug_context: str = "") -> Opt
         return None
     
     try:
-        # 尝试标准OpenAI格式：response.choices[0].message.content
+        # 首先检查是否是错误响应
+        if hasattr(response, 'error') and response.error:
+            print(f"❌ [{debug_context}] API返回错误: {response.error}")
+            return None
+            
+        # 检查choices是否存在且有效
         if hasattr(response, 'choices') and response.choices:
+            if not response.choices:
+                print(f"⚠️ [{debug_context}] choices为空列表")
+                return None
+                
             choice = response.choices[0]
+            
+            # 检查message结构
             if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
                 content = choice.message.content
                 if content and content.strip():
                     return content.strip()
                 else:
                     print(f"⚠️ [{debug_context}] choices[0].message.content 为空")
+                    
+                    # 检查是否有其他字段
+                    if hasattr(choice.message, 'role'):
+                        print(f"🔍 [{debug_context}] message.role: {choice.message.role}")
+                    if hasattr(choice, 'finish_reason'):
+                        print(f"🔍 [{debug_context}] choice.finish_reason: {choice.finish_reason}")
+                    if hasattr(choice, 'index'):
+                        print(f"🔍 [{debug_context}] choice.index: {choice.index}")
         
-        # 尝试直接的content字段
-        if hasattr(response, 'content'):
-            content = response.content
-            if content and content.strip():
-                return content.strip()
-            else:
-                print(f"⚠️ [{debug_context}] response.content 为空")
+        # 尝试检查完整的响应结构
+        print(f"🔍 [{debug_context}] 完整响应分析:")
+        if hasattr(response, '__dict__'):
+            for key, value in response.__dict__.items():
+                if key not in ['_client', '_request_id']:
+                    print(f"    {key}: {type(value)} = {str(value)[:100] if len(str(value)) > 100 else value}")
         
-        # 尝试text字段
-        if hasattr(response, 'text'):
-            text = response.text
-            if text and text.strip():
-                return text.strip()
-            else:
-                print(f"⚠️ [{debug_context}] response.text 为空")
+        # 尝试其他可能的响应格式
+        for attr_name in ['content', 'text', 'output', 'result']:
+            if hasattr(response, attr_name):
+                content = getattr(response, attr_name)
+                if content and str(content).strip():
+                    print(f"✅ [{debug_context}] 从 {attr_name} 字段找到内容")
+                    return str(content).strip()
+                else:
+                    print(f"⚠️ [{debug_context}] response.{attr_name} 为空")
         
-        # 尝试字典格式
+        # 如果是字典格式
         if isinstance(response, dict):
-            for key in ['content', 'text', 'output', 'result']:
+            for key in ['content', 'text', 'output', 'result', 'choices']:
                 if key in response and response[key]:
                     content = str(response[key]).strip()
                     if content:
+                        print(f"✅ [{debug_context}] 从字典 {key} 找到内容")
                         return content
-                    else:
-                        print(f"⚠️ [{debug_context}] response['{key}'] 为空")
         
-        # 如果所有标准格式都失败，记录完整响应结构用于调试
-        print(f"🔍 [{debug_context}] 无法解析响应，响应结构:")
-        if hasattr(response, '__dict__'):
-            print(f"    属性: {list(response.__dict__.keys())}")
-        elif isinstance(response, dict):
-            print(f"    字典键: {list(response.keys())}")
-        else:
-            print(f"    类型: {type(response)}")
-            print(f"    内容: {str(response)[:200]}...")
-        
+        print(f"❌ [{debug_context}] 无法从任何字段提取内容")
         return None
         
     except Exception as e:
         print(f"❌ [{debug_context}] 解析响应时发生错误: {e}")
+        import traceback
+        print(f"🔍 [{debug_context}] 错误详情: {traceback.format_exc()}")
         return None
 
 
@@ -123,30 +135,67 @@ class ChineseTranslator:
         self.client = None
         self.logger = None
         
-        if self.api_key:
-            try:
-                # 初始化GLM日志记录器
-                self.logger = GLMLogger()
+        # 检查API密钥是否有效
+        if not self.api_key or self.api_key in ['your_zhipuai_api_key_here', 'your_github_token_here', '']:
+            print("❌ GLM API密钥未设置或使用示例密钥，翻译功能将不可用")
+            print("📝 请在 .env.local 文件中设置有效的 GLM_API_KEY")
+            return
+        
+        try:
+            # 初始化GLM日志记录器
+            self.logger = GLMLogger()
+            
+            # 使用包装客户端，自动记录API调用
+            self.client = GLMClientWrapper(
+                api_key=self.api_key,
+                base_url=GLM_API_BASE,
+                logger=self.logger
+            )
+            print("✅ GLM翻译客户端初始化成功")
+            
+            # 测试API连接
+            self._test_api_connection()
+            
+        except Exception as e:
+            print(f"❌ GLM客户端初始化失败: {e}")
+            self.client = None
+            self.logger = None
+    
+    def _test_api_connection(self):
+        """测试API连接是否正常"""
+        try:
+            print("🔧 测试GLM API连接...")
+            test_completion = self.client.chat_completions_create(
+                model=GLM_MODEL,
+                messages=[{"role": "user", "content": "请回复'连接正常'"}],
+                temperature=0.1,
+                max_tokens=10
+            )
+            
+            test_content = extract_content_from_response(test_completion, "API连接测试")
+            if test_content:
+                print(f"✅ API连接测试成功: {test_content}")
+            else:
+                print("⚠️ API连接测试失败：无法获取响应内容")
                 
-                # 使用包装客户端，自动记录API调用
-                self.client = GLMClientWrapper(
-                    api_key=self.api_key,
-                    base_url=GLM_API_BASE,
-                    logger=self.logger
-                )
-                print("✅ GLM翻译客户端初始化成功")
-            except Exception as e:
-                print(f"❌ GLM客户端初始化失败: {e}")
-                self.client = None
-                self.logger = None
-        else:
-            print("❌ 缺少GLM API密钥，翻译功能将不可用")
+        except Exception as e:
+            print(f"❌ API连接测试失败: {e}")
+            self.client = None  # 禁用客户端
     
     def translate_to_chinese(self, english_content: str, title: str = "") -> Optional[str]:
         """将英文内容翻译为中文"""
         if not self.client:
             print("❌ 翻译客户端未初始化")
             return None
+        
+        # 验证输入内容
+        if not english_content or not english_content.strip():
+            print("⚠️ 翻译内容为空")
+            return None
+        
+        if len(english_content.strip()) < 50:
+            print("⚠️ 翻译内容过短，跳过翻译")
+            return english_content
         
         try:
             system_prompt = """你是一个专业的加密货币和区块链领域翻译专家。请将提供的英文文章翻译为自然流畅的中文，要求：
@@ -189,6 +238,8 @@ class ChineseTranslator:
             
         except Exception as e:
             print(f"❌ 翻译失败: {e}")
+            import traceback
+            print(f"🔍 翻译错误详情: {traceback.format_exc()}")
             return None
     
     def generate_summary(self, chinese_content: str, title: str = "") -> Optional[str]:
