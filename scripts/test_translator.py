@@ -43,6 +43,10 @@ def load_translator_module():
     translator_module = importlib.util.module_from_spec(translator_spec)
     sys.modules['translator'] = translator_module
     
+    # 设置模块环境
+    translator_module.__file__ = translator_path
+    translator_module.__dict__['__file__'] = translator_path
+    
     # 执行修复后的代码
     exec(translator_code, translator_module.__dict__)
     
