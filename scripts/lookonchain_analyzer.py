@@ -79,24 +79,47 @@ class LookOnChainAnalyzer:
                 }
             
             processed_articles = []
-            for i, article in enumerate(raw_articles[:MAX_ARTICLES_PER_DAY], 1):
-                print(f"\n📝 处理文章 {i}/{len(raw_articles)}")
-                processed_article = self.translator.process_article(article)
-                
-                if processed_article:
-                    processed_articles.append(processed_article)
-                    print(f"✅ 文章 {i} 处理完成")
-                else:
-                    print(f"❌ 文章 {i} 处理失败")
+            failed_articles = 0
             
+            for i, article in enumerate(raw_articles[:MAX_ARTICLES_PER_DAY], 1):
+                print(f"\n📝 处理文章 {i}/{min(len(raw_articles), MAX_ARTICLES_PER_DAY)}")
+                
+                try:
+                    processed_article = self.translator.process_article(article)
+                    
+                    if processed_article:
+                        processed_articles.append(processed_article)
+                        
+                        # 检查处理质量
+                        stats = processed_article.get('processing_stats', {})
+                        successful_steps = sum(stats.values())
+                        if successful_steps == len(stats):
+                            print(f"✅ 文章 {i} 完全处理成功")
+                        elif successful_steps > 0:
+                            print(f"⚠️ 文章 {i} 部分处理成功")
+                        else:
+                            print(f"⚠️ 文章 {i} 基本处理完成（使用fallback）")
+                    else:
+                        failed_articles += 1
+                        print(f"❌ 文章 {i} 处理失败")
+                        
+                except Exception as e:
+                    failed_articles += 1
+                    print(f"❌ 文章 {i} 处理时发生异常: {e}")
+            
+            # 即使部分失败，只要有成功处理的文章就继续
             if not processed_articles:
                 return {
                     "success": False,
-                    "error": "所有文章翻译均失败",
+                    "error": f"所有 {len(raw_articles)} 篇文章处理均失败",
+                    "failed_articles": failed_articles,
                     "stage": "translation"
                 }
             
-            print(f"✅ 成功处理 {len(processed_articles)} 篇文章")
+            if failed_articles > 0:
+                print(f"✅ 成功处理 {len(processed_articles)} 篇文章，失败 {failed_articles} 篇")
+            else:
+                print(f"✅ 成功处理 {len(processed_articles)} 篇文章")
             
             # 步骤3: 生成Hugo文章
             print("\n" + "="*50)
@@ -110,6 +133,7 @@ class LookOnChainAnalyzer:
                 "success": generation_result["success"],
                 "scrapped_articles": len(raw_articles),
                 "translated_articles": len(processed_articles),
+                "failed_articles": failed_articles,
                 "generated_articles": generation_result["generated"],
                 "total_processed": generation_result["total_processed"],
                 "generated_files": generation_result.get("files", []),
@@ -142,6 +166,11 @@ class LookOnChainAnalyzer:
             print(f"✅ 任务执行成功")
             print(f"📰 爬取文章数: {result.get('scrapped_articles', 0)}")
             print(f"🔄 翻译文章数: {result.get('translated_articles', 0)}")
+            
+            failed_count = result.get('failed_articles', 0)
+            if failed_count > 0:
+                print(f"❌ 失败文章数: {failed_count}")
+            
             print(f"📄 生成文章数: {result.get('generated_articles', 0)}")
             print(f"💬 结果信息: {result.get('message', '')}")
             
