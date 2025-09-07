@@ -41,6 +41,10 @@ SUMMARY_TEMPERATURE = 0.7      # 总结使用中等温度保持创造性
 MAX_TOKENS_TRANSLATION = 4000  # 翻译最大token数
 MAX_TOKENS_SUMMARY = 2000     # 总结最大token数
 
+# 专业格式化配置
+PROFESSIONAL_FORMAT_TEMPERATURE = 0.5  # 专业格式化使用中等温度平衡准确性和创造性
+MAX_TOKENS_PROFESSIONAL_FORMAT = 8000  # 专业格式化最大token数
+
 # 文章生成配置
 MAX_ARTICLES_PER_DAY = 3       # 每日最多抓取文章数
 ARTICLE_MIN_LENGTH = 500       # 原文最小长度（字符）

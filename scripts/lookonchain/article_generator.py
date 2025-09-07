@@ -12,14 +12,18 @@ from .config import (
     AUTHOR_INFO, DEFAULT_TAGS, DEFAULT_CATEGORIES, DEFAULT_KEYWORDS,
     DATA_DIR, LOOKONCHAIN_HISTORY_FILE
 )
+from .professional_formatter import ProfessionalFormatter
 
 
 class ArticleGenerator:
     """Hugo 文章生成器"""
     
-    def __init__(self):
+    def __init__(self, openai_api_key: str = None, logger=None):
         self.ensure_data_directory()
         self.history_file = LOOKONCHAIN_HISTORY_FILE
+        # 初始化专业格式化器
+        self.formatter = ProfessionalFormatter(openai_api_key, logger)
+        print("✅ ArticleGenerator初始化完成")
     
     def ensure_data_directory(self):
         """确保数据目录存在"""
@@ -230,7 +234,15 @@ hidden = false
     def generate_article_content(self, article: Dict[str, str]) -> str:
         """生成完整的文章内容"""
         
-        # 文章摘要部分
+        # 首先尝试专业格式化
+        if self.formatter and self.formatter.client:
+            print("🎨 使用专业格式化器生成内容...")
+            formatted_article = self.formatter.format_content(article)
+            if formatted_article and formatted_article.get('formatted_content'):
+                return self._add_author_section(formatted_article['formatted_content'])
+        
+        print("📝 使用默认格式生成内容...")
+        # Fallback: 使用原有的简单格式
         content = f"""{{{{< alert >}}}}
 **LookOnChain链上监控**: {article['summary']}
 {{{{< /alert >}}}}
@@ -246,7 +258,13 @@ hidden = false
 - **LookOnChain平台**: [https://www.lookonchain.com/](https://www.lookonchain.com/)
 
 ### 📈 投资风险提示
-以上内容仅为链上数据分析，不构成投资建议。加密货币投资存在高风险，价格波动剧烈，请理性投资并做好风险管理。投资前请充分了解项目基本面，不要投入超出承受能力的资金。
+以上内容仅为链上数据分析，不构成投资建议。加密货币投资存在高风险，价格波动剧烈，请理性投资并做好风险管理。投资前请充分了解项目基本面，不要投入超出承受能力的资金。"""
+        
+        return self._add_author_section(content)
+    
+    def _add_author_section(self, content: str) -> str:
+        """添加作者信息部分"""
+        author_section = f"""
 
 ---
 
@@ -271,7 +289,7 @@ hidden = false
 
 *欢迎关注我的各个平台，获取最新的加密货币市场分析和投资洞察！*"""
         
-        return content
+        return content + author_section
     
     def create_hugo_article(self, article: Dict[str, str], output_dir: str) -> Optional[str]:
         """创建完整的Hugo文章文件"""

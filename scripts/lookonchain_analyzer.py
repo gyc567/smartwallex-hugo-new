@@ -42,7 +42,8 @@ class LookOnChainAnalyzer:
         # 初始化各个组件
         self.scraper = LookOnChainScraper()
         self.translator = ChineseTranslator(self.openai_api_key)
-        self.generator = ArticleGenerator()
+        # 将translator的logger传递给generator以便共享统计信息
+        self.generator = ArticleGenerator(self.openai_api_key, self.translator.logger if self.translator else None)
         
         print("🚀 LookOnChain 分析器初始化完成")
     

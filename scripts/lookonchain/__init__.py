@@ -9,5 +9,6 @@ __author__ = "ERIC"
 from .scraper import LookOnChainScraper
 from .translator import ChineseTranslator
 from .article_generator import ArticleGenerator
+from .professional_formatter import ProfessionalFormatter
 
-__all__ = ['LookOnChainScraper', 'ChineseTranslator', 'ArticleGenerator']
+__all__ = ['LookOnChainScraper', 'ChineseTranslator', 'ArticleGenerator', 'ProfessionalFormatter']
