@@ -71,6 +71,78 @@ class ArticleGenerator:
         
         return filename
     
+    def generate_english_slug(self, chinese_title: str, date_obj: datetime.datetime) -> str:
+        """基于中文标题生成英文slug"""
+        date_str = date_obj.strftime('%Y-%m-%d')
+        
+        # 常见加密货币术语映射
+        crypto_terms = {
+            '比特币': 'bitcoin',
+            'BTC': 'btc', 
+            '以太坊': 'ethereum',
+            'ETH': 'eth',
+            '鲸鱼': 'whale',
+            '地址': 'address',
+            '交易': 'transaction',
+            '资金': 'fund',
+            '转账': 'transfer',
+            '流入': 'inflow',
+            '流出': 'outflow',
+            '交易所': 'exchange',
+            '币安': 'binance',
+            '抛售': 'sell',
+            '买入': 'buy',
+            '持仓': 'position',
+            'DeFi': 'defi',
+            'NFT': 'nft',
+            '代币': 'token',
+            '项目': 'project',
+            '分析': 'analysis',
+            '市场': 'market',
+            '价格': 'price',
+            '投资': 'investment',
+            '链上': 'onchain',
+            '数据': 'data',
+            '监控': 'monitoring',
+            'USDT': 'usdt',
+            'USDC': 'usdc'
+        }
+        
+        # 提取关键词并转换为英文
+        title_lower = chinese_title.lower()
+        english_parts = []
+        
+        # 匹配关键术语
+        for chinese, english in crypto_terms.items():
+            if chinese.lower() in title_lower:
+                english_parts.append(english)
+        
+        # 如果没有匹配到特定术语，使用通用描述
+        if not english_parts:
+            if '分析' in title_lower or '数据' in title_lower:
+                english_parts.append('analysis')
+            if '交易' in title_lower or '转账' in title_lower:
+                english_parts.append('transaction')
+            if '地址' in title_lower:
+                english_parts.append('address')
+        
+        # 如果还是没有关键词，使用默认值
+        if not english_parts:
+            english_parts.append('crypto-data')
+        
+        # 去重并限制数量
+        english_parts = list(dict.fromkeys(english_parts))[:3]
+        
+        # 生成slug
+        slug_base = '-'.join(english_parts)
+        slug = f"lookonchain-{slug_base}-{date_str}"
+        
+        # 清理slug（确保只包含字母、数字、连字符）
+        slug = re.sub(r'[^a-z0-9\-]', '', slug.lower())
+        slug = re.sub(r'-+', '-', slug).strip('-')
+        
+        return slug
+
     def generate_article_tags(self, chinese_content: str, chinese_title: str) -> List[str]:
         """基于内容生成相关标签"""
         tags = DEFAULT_TAGS.copy()
@@ -107,6 +179,9 @@ class ArticleGenerator:
         # 处理标题中的特殊字符
         safe_title = article['chinese_title'].replace("'", "''").replace('"', '""')
         
+        # 生成英文slug
+        slug = self.generate_english_slug(article['chinese_title'], now)
+        
         # 生成描述
         description = article['summary'][:150] + "..." if len(article['summary']) > 150 else article['summary']
         safe_description = description.replace("'", "''").replace('"', '""')
@@ -129,6 +204,7 @@ draft = false
 title = '{safe_title}'
 description = '{safe_description}'
 summary = '{safe_description}'
+slug = '{slug}'
 tags = {tags_str}
 categories = {categories_str}
 keywords = {keywords_str}
