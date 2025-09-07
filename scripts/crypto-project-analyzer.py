@@ -12,12 +12,15 @@ from typing import List, Dict, Any, Set, Optional, Tuple
 import time
 import re
 import hashlib
-from openai import OpenAI
 import config
-from glm_logger import GLMLogger, GLMClientWrapper
+from openai_client import create_openai_client, extract_content_from_response
+try:
+    from glm_logger import GLMLogger
+except ImportError:
+    from openai_client import GLMLogger
 
 class CryptoProjectAnalyzer:
-    def __init__(self, github_token: str = None, glm_api_key: str = None):
+    def __init__(self, github_token: str = None, openai_api_key: str = None):
         self.github_token = github_token
         self.headers = {
             'Accept': 'application/vnd.github.v3+json',
@@ -27,26 +30,34 @@ class CryptoProjectAnalyzer:
             self.headers['Authorization'] = f'token {github_token}'
         
         # AI客户端初始化
-        self.ai_enabled = config.AI_ENABLED and glm_api_key
+        self.ai_enabled = config.AI_ENABLED and openai_api_key
         if self.ai_enabled:
             try:
-                # 初始化GLM日志记录器
-                self.glm_logger = GLMLogger()
+                # 初始化日志记录器
+                self.ai_logger = GLMLogger()
                 
-                # 使用包装客户端，自动记录API调用
-                self.ai_client = GLMClientWrapper(
-                    api_key=glm_api_key,
-                    base_url=config.GLM_API_BASE,
-                    logger=self.glm_logger
+                # 使用OpenAI兼容客户端
+                self.ai_client = create_openai_client(
+                    api_key=openai_api_key,
+                    base_url=config.OPENAI_BASE_URL,
+                    model=config.OPENAI_MODEL,
+                    logger=self.ai_logger
                 )
-                print("✅ AI分析已启用（含日志记录）")
+                
+                if self.ai_client:
+                    print("✅ AI分析已启用（含日志记录）")
+                else:
+                    self.ai_enabled = False
+                    print("❌ AI客户端创建失败")
+                    
             except Exception as e:
                 print(f"⚠️  AI客户端初始化失败: {e}")
                 self.ai_enabled = False
-                self.glm_logger = None
+                self.ai_client = None
+                self.ai_logger = None
         else:
             self.ai_client = None
-            self.glm_logger = None
+            self.ai_logger = None
             print("ℹ️  AI分析未启用")
         
         # 项目历史记录文件路径
@@ -141,7 +152,6 @@ README摘要: {readme_content[:800] if readme_content else '无README内容'}
             user_prompt = f"请分析以下加密货币/区块链GitHub项目：\n\n{project_summary}"
             
             completion = self.ai_client.chat_completions_create(
-                model=config.GLM_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -151,9 +161,13 @@ README摘要: {readme_content[:800] if readme_content else '无README内容'}
                 max_tokens=config.AI_ANALYSIS_MAX_TOKENS
             )
             
-            response_text = completion.choices[0].message.content.strip()
+            response_text = extract_content_from_response(completion, "AI项目质量分析")
             
             # 解析JSON响应
+            if not response_text:
+                print("⚠️  AI响应为空")
+                return 0.5, "AI响应为空"
+                
             try:
                 result = json.loads(response_text)
                 score = float(result.get('score', 0.5))
@@ -210,7 +224,6 @@ AI质量分析: {ai_analysis}
 请生成一个适合评测文章开头的专业摘要。"""
             
             completion = self.ai_client.chat_completions_create(
-                model=config.GLM_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -220,7 +233,8 @@ AI质量分析: {ai_analysis}
                 max_tokens=500
             )
             
-            return completion.choices[0].message.content.strip()
+            summary = extract_content_from_response(completion, "AI项目摘要生成")
+            return summary or "摘要生成失败，请查看日志获取详细信息"
         
         except Exception as e:
             print(f"⚠️  AI摘要生成失败: {e}")
@@ -255,7 +269,6 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
 日均Stars: {basic_info['stargazers_count'] / max(1, created_days):.2f}个/天"""
             
             completion = self.ai_client.chat_completions_create(
-                model=config.GLM_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -265,7 +278,8 @@ Star/Fork比例: {basic_info['stargazers_count'] / max(1, basic_info['forks_coun
                 max_tokens=300
             )
             
-            return completion.choices[0].message.content.strip()
+            analysis = extract_content_from_response(completion, "AI数据分析")
+            return analysis or f"该项目获得{basic_info['stargazers_count']:,}个星标，显示出良好的社区关注度。"
         
         except Exception as e:
             print(f"⚠️  AI数据分析失败: {e}")
@@ -802,18 +816,18 @@ def main():
         if not os.getenv('GITHUB_ACTIONS'):
             print("💡 提示: 请在 .env.local 文件中设置 GITHUB_TOKEN=your_token")
     
-    # 从环境变量获取GLM API key
-    glm_api_key = config.GLM_API_KEY
+    # 从环境变量获取OpenAI API key
+    openai_api_key = config.OPENAI_API_KEY
     
-    if glm_api_key:
+    if openai_api_key:
         if not os.getenv('GITHUB_ACTIONS'):
-            print(f"✅ 已获取GLM API Key: {glm_api_key[:8]}...")
+            print(f"✅ 已获取OpenAI API Key: {openai_api_key[:8]}...")
     else:
-        print("⚠️  警告: 未设置GLM_API_KEY环境变量，AI分析功能将被禁用")
+        print("⚠️  警告: 未设置OPENAI_API_KEY环境变量，AI分析功能将被禁用")
         if not os.getenv('GITHUB_ACTIONS'):
-            print("💡 提示: 请设置环境变量 GLM_API_KEY=your_glm_api_key")
+            print("💡 提示: 请设置环境变量 OPENAI_API_KEY=your_openai_api_key")
     
-    analyzer = CryptoProjectAnalyzer(github_token, glm_api_key)
+    analyzer = CryptoProjectAnalyzer(github_token, openai_api_key)
     
     print("🔍 开始搜索热门加密货币项目...")
     

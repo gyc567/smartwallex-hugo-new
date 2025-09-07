@@ -30,10 +30,10 @@ REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
-# GLM API 配置（复用主配置）
-GLM_API_KEY = os.getenv('GLM_API_KEY')
-GLM_API_BASE = 'https://open.bigmodel.cn/api/paas/v4/'
-GLM_MODEL = 'glm-4.5'
+# OpenAI兼容API配置（复用主配置）
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api-inference.modelscope.cn/v1/')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'Qwen/Qwen2.5-Coder-32B-Instruct')
 
 # 翻译和总结配置
 TRANSLATION_TEMPERATURE = 0.3  # 翻译使用较低温度保持准确性

@@ -30,18 +30,18 @@ if not os.getenv('GITHUB_ACTIONS'):
             print(f"⚠️ 警告: 无法加载 .env.local 文件: {e}")
 
 from lookonchain import LookOnChainScraper, ChineseTranslator, ArticleGenerator
-from lookonchain.config import GLM_API_KEY, MAX_ARTICLES_PER_DAY
+from lookonchain.config import OPENAI_API_KEY, MAX_ARTICLES_PER_DAY
 
 
 class LookOnChainAnalyzer:
     """LookOnChain 文章分析器主类"""
     
-    def __init__(self, glm_api_key: str = None):
-        self.glm_api_key = glm_api_key or GLM_API_KEY
+    def __init__(self, openai_api_key: str = None):
+        self.openai_api_key = openai_api_key or OPENAI_API_KEY
         
         # 初始化各个组件
         self.scraper = LookOnChainScraper()
-        self.translator = ChineseTranslator(self.glm_api_key)
+        self.translator = ChineseTranslator(self.openai_api_key)
         self.generator = ArticleGenerator()
         
         print("🚀 LookOnChain 分析器初始化完成")
@@ -74,7 +74,7 @@ class LookOnChainAnalyzer:
             if not self.translator.client:
                 return {
                     "success": False,
-                    "error": "翻译客户端未初始化，请检查GLM_API_KEY",
+                    "error": "翻译客户端未初始化，请检查OPENAI_API_KEY",
                     "stage": "translation_init"
                 }
             
@@ -187,7 +187,7 @@ class LookOnChainAnalyzer:
         
         # 显示API使用统计
         if hasattr(self.translator, 'logger') and self.translator.logger:
-            print("\n🤖 GLM API 使用统计:")
+            print("\n🤖 OpenAI API 使用统计:")
             stats = self.translator.get_api_usage_stats()
             if "error" not in stats:
                 print(f"   📞 总调用次数: {stats.get('total_calls', 0)}")
@@ -207,17 +207,17 @@ def main():
     print(f"⏰ 当前时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 检查API密钥
-    glm_api_key = GLM_API_KEY
-    if not glm_api_key:
-        print("❌ 错误: 未设置 GLM_API_KEY 环境变量")
+    openai_api_key = OPENAI_API_KEY
+    if not openai_api_key:
+        print("❌ 错误: 未设置 OPENAI_API_KEY 环境变量")
         print("💡 请设置环境变量或在 scripts/.env.local 文件中配置")
         sys.exit(1)
     
     if not os.getenv('GITHUB_ACTIONS'):
-        print(f"✅ GLM API Key 已配置: {glm_api_key[:8]}...")
+        print(f"✅ OpenAI API Key 已配置: {openai_api_key[:8]}...")
     
     # 创建分析器并执行任务
-    analyzer = LookOnChainAnalyzer(glm_api_key)
+    analyzer = LookOnChainAnalyzer(openai_api_key)
     result = analyzer.run_daily_analysis()
     
     # 打印结果摘要

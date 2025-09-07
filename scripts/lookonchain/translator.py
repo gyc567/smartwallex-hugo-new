@@ -10,43 +10,11 @@ import os
 from typing import Dict, Tuple, Optional, Any
 from openai import OpenAI
 
-# 添加父目录到路径以导入 glm_logger
+# 添加父目录到路径以导入统一客户端
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-try:
-    from glm_logger import GLMLogger, GLMClientWrapper
-except ImportError:
-    # 如果 glm_logger 不存在，创建简化版本
-    print("Warning: glm_logger not found, using simplified version")
-    
-    class GLMLogger:
-        def __init__(self):
-            self.stats = {"total_calls": 0, "successful_calls": 0, "failed_calls": 0, 
-                         "total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0}
-        
-        def get_daily_stats(self):
-            return self.stats
-    
-    class GLMClientWrapper:
-        def __init__(self, api_key, base_url, logger):
-            self.client = OpenAI(api_key=api_key, base_url=base_url)
-            self.logger = logger
-        
-        def chat_completions_create(self, **kwargs):
-            try:
-                response = self.client.chat.completions.create(**kwargs)
-                self.logger.stats["total_calls"] += 1
-                self.logger.stats["successful_calls"] += 1
-                if hasattr(response, 'usage') and response.usage:
-                    self.logger.stats["total_tokens"] += response.usage.total_tokens
-                    self.logger.stats["prompt_tokens"] += response.usage.prompt_tokens
-                    self.logger.stats["completion_tokens"] += response.usage.completion_tokens
-                return response
-            except Exception as e:
-                self.logger.stats["total_calls"] += 1
-                self.logger.stats["failed_calls"] += 1
-                raise e
+from openai_client import create_openai_client, extract_content_from_response, GLMLogger
 from .config import (
-    GLM_API_KEY, GLM_API_BASE, GLM_MODEL,
+    OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL,
     TRANSLATION_TEMPERATURE, SUMMARY_TEMPERATURE,
     MAX_TOKENS_TRANSLATION, MAX_TOKENS_SUMMARY
 )
@@ -130,43 +98,47 @@ def extract_content_from_response(response: Any, debug_context: str = "") -> Opt
 class ChineseTranslator:
     """中文翻译和总结生成器"""
     
-    def __init__(self, glm_api_key: str = None):
-        self.api_key = glm_api_key or GLM_API_KEY
+    def __init__(self, openai_api_key: str = None):
+        self.api_key = openai_api_key or OPENAI_API_KEY
         self.client = None
         self.logger = None
         
         # 检查API密钥是否有效
-        if not self.api_key or self.api_key in ['your_zhipuai_api_key_here', 'your_github_token_here', '']:
-            print("❌ GLM API密钥未设置或使用示例密钥，翻译功能将不可用")
-            print("📝 请在 .env.local 文件中设置有效的 GLM_API_KEY")
+        if not self.api_key or self.api_key in ['your_openai_api_key_here', 'your_api_key_here', '']:
+            print("❌ OpenAI API密钥未设置或使用示例密钥，翻译功能将不可用")
+            print("📝 请在 .env.local 文件中设置有效的 OPENAI_API_KEY")
             return
         
         try:
-            # 初始化GLM日志记录器
+            # 初始化日志记录器
             self.logger = GLMLogger()
             
-            # 使用包装客户端，自动记录API调用
-            self.client = GLMClientWrapper(
+            # 使用OpenAI兼容客户端
+            self.client = create_openai_client(
                 api_key=self.api_key,
-                base_url=GLM_API_BASE,
+                base_url=OPENAI_BASE_URL,
+                model=OPENAI_MODEL,
                 logger=self.logger
             )
-            print("✅ GLM翻译客户端初始化成功")
             
-            # 测试API连接
-            self._test_api_connection()
+            if self.client:
+                print("✅ 翻译客户端初始化成功")
+                # 测试API连接
+                self._test_api_connection()
+            else:
+                print("❌ 翻译客户端创建失败")
+                self.logger = None
             
         except Exception as e:
-            print(f"❌ GLM客户端初始化失败: {e}")
+            print(f"❌ 翻译客户端初始化失败: {e}")
             self.client = None
             self.logger = None
     
     def _test_api_connection(self):
         """测试API连接是否正常"""
         try:
-            print("🔧 测试GLM API连接...")
+            print("🔧 测试API连接...")
             test_completion = self.client.chat_completions_create(
-                model=GLM_MODEL,
                 messages=[{"role": "user", "content": "请回复'连接正常'"}],
                 temperature=0.1,
                 max_tokens=10
@@ -219,7 +191,6 @@ class ChineseTranslator:
             print("🔄 正在翻译为中文...")
             
             completion = self.client.chat_completions_create(
-                model=GLM_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -270,7 +241,6 @@ class ChineseTranslator:
             print("📝 正在生成文章摘要...")
             
             completion = self.client.chat_completions_create(
-                model=GLM_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -322,7 +292,6 @@ class ChineseTranslator:
                 print(f"🏷️ 正在翻译标题... (尝试 {attempt + 1}/{max_retries + 1})")
                 
                 completion = self.client.chat_completions_create(
-                    model=GLM_MODEL,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}

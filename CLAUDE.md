@@ -38,10 +38,12 @@ python scripts/manage-history.py list
 python scripts/manage-history.py search "keyword"
 
 # Environment variables (can also be set in .env.local):
-# GITHUB_TOKEN=your_github_token     # Optional, for higher API limits
-# GLM_API_KEY=your_glm_api_key      # Required for AI analysis
-# DAYS_BACK=7                       # Search recent N days (default: 7)
-# MAX_PROJECTS=3                    # Max projects per run (default: 3)
+# GITHUB_TOKEN=your_github_token               # Optional, for higher API limits
+# OPENAI_API_KEY=your_openai_api_key          # Required for AI analysis
+# OPENAI_BASE_URL=https://api-inference.modelscope.cn/v1/  # API endpoint
+# OPENAI_MODEL=Qwen/Qwen2.5-Coder-32B-Instruct           # Model name
+# DAYS_BACK=7                                 # Search recent N days (default: 7)
+# MAX_PROJECTS=3                              # Max projects per run (default: 3)
 ```
 
 ### Node.js Automation System
@@ -79,7 +81,7 @@ npm run validate:setup
 
 #### 1. Python-based GitHub Analysis (`scripts/`)
 - **Purpose**: AI-powered analysis of trending crypto projects on GitHub
-- **AI Integration**: Uses GLM-4.5 for intelligent project filtering and content generation
+- **AI Integration**: Uses OpenAI-compatible APIs (ModelScope, OpenAI, Azure OpenAI) for intelligent project filtering and content generation
 - **Schedule**: Daily via GitHub Actions (UTC 16:00 / Beijing 00:00)
 - **Output**: Generates 3 professional review articles daily with AI insights
 - **Key Features**:
@@ -91,6 +93,7 @@ npm run validate:setup
   - `crypto-project-analyzer.py` - Main analyzer with AI integration
   - `manage-history.py` - Project history management
   - `config.py` - Configuration settings including AI parameters
+  - `openai_client.py` - Unified OpenAI-compatible API client
   - `.env.example` - Environment configuration template
 
 #### 2. Node.js Twitter Automation (`automation/`)
@@ -142,7 +145,9 @@ All articles follow the template in `md-template.md` with:
 ### API Keys and Secrets
 - GitHub token automatically provided by GitHub Actions
 - Twitter API keys stored in GitHub Secrets for the automation system
-- **GLM_API_KEY**: 智谱AI GLM-4.5 API密钥，用于AI分析功能 (environment variable)
+- **OPENAI_API_KEY**: OpenAI-compatible API key for AI analysis (supports ModelScope, OpenAI, Azure OpenAI)
+- **OPENAI_BASE_URL**: API endpoint URL (default: ModelScope)
+- **OPENAI_MODEL**: Model name (default: Qwen/Qwen2.5-Coder-32B-Instruct)
 - **Setup**: Copy `scripts/.env.example` to `scripts/.env.local` and configure your API keys
 - No hardcoded credentials in the codebase
 

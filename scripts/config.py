@@ -8,10 +8,10 @@ import os
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')  # 可选，提高API限制
 GITHUB_API_BASE = 'https://api.github.com'
 
-# GLM-4.5 AI配置
-GLM_API_KEY = os.getenv('GLM_API_KEY')  # 智谱AI API密钥
-GLM_API_BASE = 'https://open.bigmodel.cn/api/paas/v4/'
-GLM_MODEL = 'glm-4.5'
+# OpenAI兼容API配置（支持ModelScope、Azure OpenAI等服务）
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')  # API密钥
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL', 'https://api-inference.modelscope.cn/v1/')  # API基础URL  
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'Qwen/Qwen2.5-72B-Instruct')  # 模型名称（翻译优化）
 
 # AI分析配置
 AI_ENABLED = True  # 是否启用AI分析
