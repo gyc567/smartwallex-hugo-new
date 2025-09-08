@@ -182,11 +182,42 @@ class LookOnChainScraper:
                         content = content_elem.get_text(separator=' ', strip=True)
                         break
                 
-                # 如果没有找到主要内容区域，提取body中的文本
+                # 如果没有找到主要内容区域，尝试更精确的选择器
                 if not content or len(content) < ARTICLE_MIN_LENGTH:
-                    body = soup.find('body')
-                    if body:
-                        content = body.get_text(separator=' ', strip=True)
+                    # 尝试移除导航、页脚、侧边栏等元素后再提取
+                    for elem in soup.select('nav, footer, aside, header, .nav, .footer, .sidebar, .menu'):
+                        if elem:
+                            elem.decompose()
+                    
+                    # 尝试更精确的内容选择器
+                    precise_selectors = [
+                        'main article', 'div[class*="post"]', 'div[class*="article"]',
+                        '.post-body', '.article-body', '.entry', '.post'
+                    ]
+                    
+                    for selector in precise_selectors:
+                        content_elem = soup.select_one(selector)
+                        if content_elem:
+                            content = content_elem.get_text(separator=' ', strip=True)
+                            if len(content) >= ARTICLE_MIN_LENGTH:
+                                break
+                    
+                    # 最后尝试body，但过滤掉明显的导航文本
+                    if not content or len(content) < ARTICLE_MIN_LENGTH:
+                        body = soup.find('body')
+                        if body:
+                            raw_content = body.get_text(separator=' ', strip=True)
+                            # 简单过滤：移除常见的导航文本模式
+                            import re
+                            # 移除菜单、导航相关文本
+                            filtered_content = re.sub(r'\b(Home|Login|Register|About|Contact|Menu|Navigation|Footer|Header|Search|Subscribe|Follow|Tweet|Share|Like|Reply|Retweet)\b', '', raw_content, flags=re.IGNORECASE)
+                            # 移除常见的无用词汇
+                            filtered_content = re.sub(r'\b(trending|popular|latest|more|read more|continue reading|click here|learn more)\b', '', filtered_content, flags=re.IGNORECASE)
+                            # 移除多余空格
+                            filtered_content = ' '.join(filtered_content.split())
+                            
+                            if len(filtered_content) >= ARTICLE_MIN_LENGTH:
+                                content = filtered_content
                 
                 # 内容长度检查
                 if len(content) < ARTICLE_MIN_LENGTH:

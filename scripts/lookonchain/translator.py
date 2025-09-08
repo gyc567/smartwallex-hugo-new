@@ -329,6 +329,57 @@ class ChineseTranslator:
         print(f"⚠️ 标题翻译全部失败，使用原标题: {original_title}")
         return original_title
     
+    def _clean_fallback_content(self, raw_content: str) -> str:
+        """
+        清理用作fallback的原始内容，移除HTML、导航文本等无用信息
+        """
+        if not raw_content:
+            return "未能获取有效文章内容"
+        
+        import re
+        
+        # 1. 移除HTML标签（如果存在）
+        content = re.sub(r'<[^>]+>', ' ', raw_content)
+        
+        # 2. 移除常见的网站导航和UI文本
+        navigation_patterns = [
+            r'\b(Home|Login|Register|Logout|About|Contact|Menu|Navigation|Footer|Header|Search|Subscribe|Follow|Share|Like|Reply|Retweet|Tweet|Copy link|Download|Upload|Settings|Profile|Dashboard|Notifications)\b',
+            r'\b(trending|popular|latest|hot|new|more|read more|continue reading|click here|learn more|show more|load more|view all|see all)\b',
+            r'\b(APP|应用商店|登录|注册|配置文件|安全|注销|动态|文章|搜索历史|清除全部|趋势搜索|关注我们|加入|下载图片|复制链接|相关内容|原文|热点新闻|更多热门文章|更多)\b',
+            r'Lookonchain\s*/\s*\d{4}\.\d{2}\.\d{2}',  # 移除Lookonchain日期格式
+            r'X\s+关注Telegram\s+加入',  # 移除社交媒体关注文本
+            r'\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2}',  # 移除时间戳
+        ]
+        
+        for pattern in navigation_patterns:
+            content = re.sub(pattern, ' ', content, flags=re.IGNORECASE)
+        
+        # 3. 移除重复的空白字符和换行
+        content = re.sub(r'\s+', ' ', content)
+        content = content.strip()
+        
+        # 4. 如果清理后内容过短，尝试提取主要段落
+        if len(content) < 200:
+            # 尝试提取包含关键词的段落
+            sentences = content.split('。')
+            relevant_sentences = []
+            keywords = ['加密', '比特币', 'BTC', 'ETH', '以太坊', '交易', '投资', '区块链', '智能', '资金', '地址', '转账', '美元', '$', 'USDT', 'DeFi', '代币']
+            
+            for sentence in sentences:
+                if any(keyword in sentence for keyword in keywords) and len(sentence) > 20:
+                    relevant_sentences.append(sentence.strip())
+            
+            if relevant_sentences:
+                content = '。'.join(relevant_sentences[:3]) + '。'
+        
+        # 5. 确保最小长度
+        if len(content) < 100:
+            content = f"文章主要内容：{content[:500]}..." if len(content) > 500 else content
+            if not content.strip():
+                content = "由于技术原因，暂时无法获取完整的文章内容。请访问原文链接查看详细信息。"
+        
+        return content
+    
     def process_article(self, article_data: Dict[str, str]) -> Optional[Dict[str, str]]:
         """
         处理完整文章：翻译标题、内容并生成摘要
@@ -360,8 +411,10 @@ class ChineseTranslator:
         )
         
         if not chinese_content:
-            print("⚠️ 内容翻译失败，使用原始内容")
-            chinese_content = article_data.get('content', '未能获取文章内容')
+            print("⚠️ 内容翻译失败，使用清理后的原始内容")
+            original_content = article_data.get('content', '未能获取文章内容')
+            # 清理原始内容中的HTML和导航文本
+            chinese_content = self._clean_fallback_content(original_content)
         else:
             processing_stats['content_translation'] = True
         
