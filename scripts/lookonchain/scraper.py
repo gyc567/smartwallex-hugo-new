@@ -165,59 +165,15 @@ class LookOnChainScraper:
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
                 # 移除不需要的元素
-                for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', '.ads', '.advertisement']):
+                for element in soup(['script', 'style', 'nav', 'header', 'footer', 'aside', '.ads', '.advertisement', '.sidebar', '.menu', '.navigation']):
                     element.decompose()
                 
-                # 尝试多种方式提取文章主体内容
-                content_selectors = [
-                    'article', '.article-content', '.post-content', '.content',
-                    '.main-content', '[class*="content"]', '.entry-content',
-                    'main', '[role="main"]'
-                ]
+                # 首先尝试针对 LookOnChain 的精确内容提取
+                content = self._extract_lookonchain_content(soup)
                 
-                content = ''
-                for selector in content_selectors:
-                    content_elem = soup.select_one(selector)
-                    if content_elem:
-                        content = content_elem.get_text(separator=' ', strip=True)
-                        break
-                
-                # 如果没有找到主要内容区域，尝试更精确的选择器
+                # 如果精确提取失败，使用通用方法
                 if not content or len(content) < ARTICLE_MIN_LENGTH:
-                    # 尝试移除导航、页脚、侧边栏等元素后再提取
-                    for elem in soup.select('nav, footer, aside, header, .nav, .footer, .sidebar, .menu'):
-                        if elem:
-                            elem.decompose()
-                    
-                    # 尝试更精确的内容选择器
-                    precise_selectors = [
-                        'main article', 'div[class*="post"]', 'div[class*="article"]',
-                        '.post-body', '.article-body', '.entry', '.post'
-                    ]
-                    
-                    for selector in precise_selectors:
-                        content_elem = soup.select_one(selector)
-                        if content_elem:
-                            content = content_elem.get_text(separator=' ', strip=True)
-                            if len(content) >= ARTICLE_MIN_LENGTH:
-                                break
-                    
-                    # 最后尝试body，但过滤掉明显的导航文本
-                    if not content or len(content) < ARTICLE_MIN_LENGTH:
-                        body = soup.find('body')
-                        if body:
-                            raw_content = body.get_text(separator=' ', strip=True)
-                            # 简单过滤：移除常见的导航文本模式
-                            import re
-                            # 移除菜单、导航相关文本
-                            filtered_content = re.sub(r'\b(Home|Login|Register|About|Contact|Menu|Navigation|Footer|Header|Search|Subscribe|Follow|Tweet|Share|Like|Reply|Retweet)\b', '', raw_content, flags=re.IGNORECASE)
-                            # 移除常见的无用词汇
-                            filtered_content = re.sub(r'\b(trending|popular|latest|more|read more|continue reading|click here|learn more)\b', '', filtered_content, flags=re.IGNORECASE)
-                            # 移除多余空格
-                            filtered_content = ' '.join(filtered_content.split())
-                            
-                            if len(filtered_content) >= ARTICLE_MIN_LENGTH:
-                                content = filtered_content
+                    content = self._extract_content_fallback(soup)
                 
                 # 内容长度检查
                 if len(content) < ARTICLE_MIN_LENGTH:
@@ -228,7 +184,13 @@ class LookOnChainScraper:
                     content = content[:ARTICLE_MAX_LENGTH] + "..."
                     print(f"📝 文章内容已截断至 {ARTICLE_MAX_LENGTH} 字符")
                 
-                print(f"✅ 成功获取文章内容: {len(content)} 字符")
+                # 最终内容质量检查
+                quality_score = self._calculate_content_quality(content)
+                if quality_score < 0.3:
+                    print(f"⚠️ 内容质量过低 (评分: {quality_score:.2f})，可能包含过多无关内容")
+                    return None
+                
+                print(f"✅ 成功获取文章内容: {len(content)} 字符，质量评分: {quality_score:.2f}")
                 return content
                 
             except requests.exceptions.RequestException as e:
@@ -238,6 +200,136 @@ class LookOnChainScraper:
                 else:
                     print(f"❌ 无法获取文章: {article_url}")
                     return None
+    
+    def _extract_lookonchain_content(self, soup: BeautifulSoup) -> str:
+        """针对 LookOnChain 网站的精确内容提取"""
+        # LookOnChain 特定的内容选择器
+        lookonchain_selectors = [
+            '.article-content',
+            '.post-content', 
+            '.entry-content',
+            '.content-body',
+            '[class*="article-body"]',
+            '[class*="post-body"]',
+            'main article',
+            '.main-content article',
+            '#article-content',
+            '#post-content'
+        ]
+        
+        for selector in lookonchain_selectors:
+            content_elem = soup.select_one(selector)
+            if content_elem:
+                # 移除内容区域内的无用元素
+                for elem in content_elem.select('.ads, .share-buttons, .social-share, .related-posts, .comments'):
+                    elem.decompose()
+                
+                content = content_elem.get_text(separator=' ', strip=True)
+                if len(content) >= ARTICLE_MIN_LENGTH:
+                    print(f"🎯 使用 LookOnChain 专用选择器: {selector}")
+                    return content
+        
+        return ""
+    
+    def _extract_content_fallback(self, soup: BeautifulSoup) -> str:
+        """备用内容提取方法"""
+        # 尝试通用的内容选择器
+        content_selectors = [
+            'article', '.article-content', '.post-content', '.content',
+            '.main-content', '[class*="content"]', '.entry-content',
+            'main', '[role="main"]'
+        ]
+        
+        content = ''
+        for selector in content_selectors:
+            content_elem = soup.select_one(selector)
+            if content_elem:
+                content = content_elem.get_text(separator=' ', strip=True)
+                if len(content) >= ARTICLE_MIN_LENGTH:
+                    break
+        
+        # 如果仍然没有找到足够内容，使用智能过滤
+        if not content or len(content) < ARTICLE_MIN_LENGTH:
+            content = self._extract_with_intelligent_filtering(soup)
+        
+        return content
+    
+    def _extract_with_intelligent_filtering(self, soup: BeautifulSoup) -> str:
+        """使用智能过滤提取内容"""
+        body = soup.find('body')
+        if not body:
+            return ""
+        
+        raw_content = body.get_text(separator=' ', strip=True)
+        
+        # 智能过滤模式 - 更精确地移除无关内容
+        import re
+        
+        # 移除 LookOnChain 特有的无用文本模式
+        noise_patterns = [
+            r'Lookonchain\s*/\s*\d{4}\.\d{2}\.\d{2}',
+            r'X\s+关注Telegram\s+加入',
+            r'\d{4}\.\d{2}\.\d{2}\s+\d{2}:\d{2}:\d{2}',
+            r'Follow\s+us\s+on\s+(Twitter|Telegram|X)',
+            r'Join\s+our\s+(community|channel|group)',
+            r'Subscribe\s+to\s+our\s+(newsletter|channel)',
+            r'Click\s+here\s+to\s+read\s+more',
+            r'Read\s+more\s+at\s+the\s+source',
+            r'Continue\s+reading',
+            r'Source\s+link',
+            r'Original\s+article',
+            r'\b(Home|Login|Register|About|Contact|Menu|Navigation|Footer|Header|Search|Subscribe|Follow|Share|Like|Reply|Retweet|Tweet|Copy link|Download|Upload|Settings|Profile|Dashboard|Notifications|APP|应用商店|登录|注册|配置文件|安全|注销|动态|文章|搜索历史|清除全部|趋势搜索|关注我们|加入|下载图片|复制链接|相关内容|原文|热点新闻|更多热门文章|更多)\b',
+            r'\b(trending|popular|latest|hot|new|more|read more|continue reading|click here|learn more|show more|load more|view all|see all)\b'
+        ]
+        
+        filtered_content = raw_content
+        for pattern in noise_patterns:
+            filtered_content = re.sub(pattern, ' ', filtered_content, flags=re.IGNORECASE)
+        
+        # 移除多余的空白字符
+        filtered_content = ' '.join(filtered_content.split())
+        
+        return filtered_content
+    
+    def _calculate_content_quality(self, content: str) -> float:
+        """计算内容质量评分 (0-1)"""
+        if not content:
+            return 0.0
+        
+        score = 0.0
+        
+        # 1. 长度评分 (0-0.3)
+        length_score = min(len(content) / 2000, 1.0) * 0.3
+        score += length_score
+        
+        # 2. 密度评分 - 检查是否包含足够的关键词 (0-0.3)
+        crypto_keywords = [
+            'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'blockchain', 
+            'defi', 'nft', 'token', 'coin', 'wallet', 'address', 'transaction',
+            'exchange', 'trading', 'investment', 'market', 'price', 'usd',
+            '美元', '比特币', '以太坊', '加密', '区块链', '代币', '交易', '投资'
+        ]
+        
+        content_lower = content.lower()
+        keyword_count = sum(1 for keyword in crypto_keywords if keyword in content_lower)
+        density_score = min(keyword_count / 10, 1.0) * 0.3
+        score += density_score
+        
+        # 3. 结构评分 - 检查段落结构 (0-0.2)
+        sentences = content.split('.')
+        if len(sentences) > 3:
+            avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences)
+            if 10 <= avg_sentence_length <= 30:
+                score += 0.2
+            elif 5 <= avg_sentence_length <= 50:
+                score += 0.1
+        
+        # 4. 可读性评分 - 检查无意义字符比例 (0-0.2)
+        meaningful_chars = sum(1 for c in content if c.isalnum() or c.isspace() or c in '.,;:!?-')
+        readability_score = (meaningful_chars / len(content)) * 0.2
+        score += readability_score
+        
+        return min(score, 1.0)
     
     def scrape_top_articles(self) -> List[Dict[str, str]]:
         """爬取前3篇文章的完整信息"""

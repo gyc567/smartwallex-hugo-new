@@ -7,6 +7,7 @@ import os
 import datetime
 import json
 import re
+import hashlib
 from typing import Dict, List, Optional, Set
 from .config import (
     AUTHOR_INFO, DEFAULT_TAGS, DEFAULT_CATEGORIES, DEFAULT_KEYWORDS,
@@ -21,6 +22,7 @@ class ArticleGenerator:
     def __init__(self, openai_api_key: str = None, logger=None):
         self.ensure_data_directory()
         self.history_file = LOOKONCHAIN_HISTORY_FILE
+        self.content_history_file = os.path.join(DATA_DIR, 'content_hashes.json')
         # 初始化专业格式化器
         self.formatter = ProfessionalFormatter(openai_api_key, logger)
         print("✅ ArticleGenerator初始化完成")
@@ -40,6 +42,141 @@ class ArticleGenerator:
         except Exception as e:
             print(f"⚠️ 加载文章历史记录失败: {e}")
             return set()
+    
+    def load_content_history(self) -> Dict[str, Dict]:
+        """加载内容哈希历史记录，用于检测重复内容"""
+        try:
+            if os.path.exists(self.content_history_file):
+                with open(self.content_history_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get('content_hashes', {})
+            return {}
+        except Exception as e:
+            print(f"⚠️ 加载内容历史记录失败: {e}")
+            return {}
+    
+    def save_content_history(self, content_history: Dict[str, Dict]):
+        """保存内容哈希历史记录"""
+        try:
+            data = {
+                'last_updated': datetime.datetime.now().isoformat(),
+                'total_hashes': len(content_history),
+                'content_hashes': content_history
+            }
+            with open(self.content_history_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"✅ 已保存 {len(content_history)} 个内容哈希记录")
+        except Exception as e:
+            print(f"⚠️ 保存内容历史记录失败: {e}")
+    
+    def generate_content_hash(self, content: str, title: str) -> str:
+        """生成内容哈希，用于检测重复内容"""
+        # 组合标题和内容生成哈希
+        combined_text = f"{title}{content}"
+        return hashlib.md5(combined_text.encode('utf-8')).hexdigest()
+    
+    def generate_semantic_hash(self, content: str) -> str:
+        """生成语义哈希，用于检测相似内容"""
+        # 提取关键词和关键信息
+        import re
+        
+        # 提取数字（金额、数量等）
+        numbers = re.findall(r'\$[\d,]+|\d+\s*(USD|美元|百万|亿|万|BTC|ETH)', content)
+        numbers = sorted(set(numbers))  # 去重排序
+        
+        # 提取加密货币关键词
+        crypto_terms = ['比特币', 'BTC', '以太坊', 'ETH', 'DeFi', 'NFT', '代币', '交易所', '钱包', '地址']
+        found_terms = [term for term in crypto_terms if term in content]
+        
+        # 提取时间信息
+        dates = re.findall(r'\d{4}\.\d{2}\.\d{2}|\d{1,2}\s*月|\d{1,2}\s*日', content)
+        dates = sorted(set(dates))
+        
+        # 组合关键信息生成语义哈希
+        semantic_content = f"{'|'.join(found_terms)}|{'|'.join(numbers)}|{'|'.join(dates)}"
+        return hashlib.md5(semantic_content.encode('utf-8')).hexdigest()
+    
+    def is_duplicate_content(self, article: Dict[str, str], url_history: Set[str], content_history: Dict[str, Dict]) -> Dict[str, bool]:
+        """检查是否为重复内容"""
+        article_id = article['id']
+        title = article.get('chinese_title', article.get('original_title', ''))
+        content = article.get('chinese_content', article.get('original_content', ''))
+        
+        duplicate_info = {
+            'url_duplicate': False,
+            'content_duplicate': False,
+            'semantic_duplicate': False,
+            'is_duplicate': False
+        }
+        
+        # 1. 检查URL重复
+        if article_id in url_history:
+            duplicate_info['url_duplicate'] = True
+            print(f"⚠️ 检测到URL重复: {title[:30]}...")
+        
+        # 2. 检查内容哈希重复
+        content_hash = self.generate_content_hash(content, title)
+        if content_hash in content_history:
+            duplicate_info['content_duplicate'] = True
+            existing_record = content_history[content_hash]
+            print(f"⚠️ 检测到内容重复: {title[:30]}... (与 {existing_record.get('title', 'unknown')} 重复)")
+        
+        # 3. 检查语义重复
+        semantic_hash = self.generate_semantic_hash(content)
+        if semantic_hash in content_history:
+            existing_record = content_history[semantic_hash]
+            # 检查时间间隔，避免误判时效性内容
+            existing_date = existing_record.get('date', '')
+            if existing_date:
+                try:
+                    from datetime import datetime as dt
+                    existing_dt = dt.fromisoformat(existing_date.replace('Z', '+00:00'))
+                    current_dt = datetime.datetime.now()
+                    days_diff = (current_dt - existing_dt).days
+                    
+                    # 如果超过7天，认为是不同的内容
+                    if days_diff <= 7:
+                        duplicate_info['semantic_duplicate'] = True
+                        print(f"⚠️ 检测到语义重复: {title[:30]}... (与 {existing_record.get('title', 'unknown')} 相似，间隔 {days_diff} 天)")
+                except:
+                    # 如果日期解析失败，保守判断为重复
+                    duplicate_info['semantic_duplicate'] = True
+                    print(f"⚠️ 检测到语义重复: {title[:30]}... (与 {existing_record.get('title', 'unknown')} 相似)")
+        
+        # 综合判断是否为重复
+        duplicate_info['is_duplicate'] = (
+            duplicate_info['url_duplicate'] or 
+            duplicate_info['content_duplicate'] or 
+            duplicate_info['semantic_duplicate']
+        )
+        
+        return duplicate_info
+    
+    def add_to_content_history(self, article: Dict[str, str], content_history: Dict[str, Dict]):
+        """添加到内容历史记录"""
+        title = article.get('chinese_title', article.get('original_title', ''))
+        content = article.get('chinese_content', article.get('original_content', ''))
+        article_id = article['id']
+        
+        # 生成哈希
+        content_hash = self.generate_content_hash(content, title)
+        semantic_hash = self.generate_semantic_hash(content)
+        
+        # 记录信息
+        record = {
+            'id': article_id,
+            'title': title,
+            'url': article.get('url', ''),
+            'date': datetime.datetime.now().isoformat(),
+            'content_hash': content_hash,
+            'semantic_hash': semantic_hash
+        }
+        
+        # 保存两种哈希
+        content_history[content_hash] = record
+        content_history[semantic_hash] = record
+        
+        print(f"📝 已添加到内容历史: {title[:30]}...")
     
     def save_article_history(self, article_ids: Set[str]):
         """保存已生成的文章历史记录"""
@@ -330,7 +467,10 @@ hidden = false
         
         # 加载历史记录
         generated_articles = self.load_article_history()
+        content_history = self.load_content_history()
+        
         print(f"📚 已生成文章数量: {len(generated_articles)}")
+        print(f"📋 内容哈希记录数量: {len(content_history)}")
         
         # 确定输出目录
         current_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -339,6 +479,7 @@ hidden = false
         generated_count = 0
         generated_files = []
         newly_generated = set()
+        skipped_duplicates = 0
         
         for i, article in enumerate(processed_articles, 1):
             article_id = article['id']
@@ -346,6 +487,14 @@ hidden = false
             # 检查是否已生成
             if self.is_article_generated(article_id, generated_articles):
                 print(f"⏭️ 跳过已生成文章 {i}: {article['chinese_title'][:30]}...")
+                continue
+            
+            # 检查重复内容
+            duplicate_info = self.is_duplicate_content(article, generated_articles, content_history)
+            
+            if duplicate_info['is_duplicate']:
+                skipped_duplicates += 1
+                print(f"🚫 跳过重复文章 {i}: {article['chinese_title'][:30]}...")
                 continue
             
             print(f"\n📄 生成文章 {i}: {article['chinese_title'][:50]}...")
@@ -356,6 +505,10 @@ hidden = false
                 generated_count += 1
                 generated_files.append(file_path)
                 newly_generated.add(article_id)
+                
+                # 添加到内容历史记录
+                self.add_to_content_history(article, content_history)
+                
                 print(f"✅ 文章 {i} 生成成功")
             else:
                 print(f"❌ 文章 {i} 生成失败")
@@ -364,17 +517,24 @@ hidden = false
         if newly_generated:
             all_generated = generated_articles.union(newly_generated)
             self.save_article_history(all_generated)
+            
+        # 保存内容历史记录
+        if content_history:
+            self.save_content_history(content_history)
         
         result = {
             "success": generated_count > 0,
             "generated": generated_count,
             "total_processed": len(processed_articles),
             "files": generated_files,
-            "newly_generated_ids": list(newly_generated)
+            "newly_generated_ids": list(newly_generated),
+            "skipped_duplicates": skipped_duplicates
         }
         
         if generated_count > 0:
-            result["message"] = f"成功生成 {generated_count} 篇文章"
+            result["message"] = f"成功生成 {generated_count} 篇文章，跳过 {skipped_duplicates} 篇重复文章"
+        elif skipped_duplicates > 0:
+            result["message"] = f"所有文章都是重复内容，跳过 {skipped_duplicates} 篇文章"
         else:
             result["message"] = "没有新文章生成（可能都已存在）"
         
