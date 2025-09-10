@@ -197,14 +197,21 @@ class ArticleGenerator:
         return article_id in generated_articles
     
     def generate_filename(self, chinese_title: str, article_id: str) -> str:
-        """生成文件名"""
-        # 从中文标题生成安全的文件名
-        filename_base = re.sub(r'[^\w\u4e00-\u9fa5\-]', '-', chinese_title)
+        """生成纯英文文件名"""
+        # 生成英文slug作为文件名基础
+        english_slug = self.generate_english_slug(chinese_title, datetime.datetime.now())
+        
+        # 清理slug确保只包含安全字符
+        filename_base = re.sub(r'[^a-z0-9\-]', '', english_slug.lower())
         filename_base = re.sub(r'-+', '-', filename_base).strip('-')
         
         # 限制文件名长度
-        if len(filename_base) > 50:
-            filename_base = filename_base[:50]
+        if len(filename_base) > 60:
+            filename_base = filename_base[:60]
+        
+        # 如果filename_base为空，使用默认名称
+        if not filename_base:
+            filename_base = "analysis"
         
         # 添加日期和ID确保唯一性
         today = datetime.datetime.now().strftime('%Y-%m-%d')
@@ -214,15 +221,14 @@ class ArticleGenerator:
     
     def generate_english_slug(self, chinese_title: str, date_obj: datetime.datetime) -> str:
         """基于中文标题生成英文slug"""
-        date_str = date_obj.strftime('%Y-%m-%d')
-        
-        # 常见加密货币术语映射
+        # 扩展的加密货币术语映射
         crypto_terms = {
             '比特币': 'bitcoin',
             'BTC': 'btc', 
             '以太坊': 'ethereum',
             'ETH': 'eth',
             '鲸鱼': 'whale',
+            '巨鲸': 'whale',
             '地址': 'address',
             '交易': 'transaction',
             '资金': 'fund',
@@ -232,8 +238,11 @@ class ArticleGenerator:
             '交易所': 'exchange',
             '币安': 'binance',
             '抛售': 'sell',
+            '卖出': 'sell',
             '买入': 'buy',
+            '购买': 'buy',
             '持仓': 'position',
+            '持有': 'hold',
             'DeFi': 'defi',
             'NFT': 'nft',
             '代币': 'token',
@@ -246,7 +255,54 @@ class ArticleGenerator:
             '数据': 'data',
             '监控': 'monitoring',
             'USDT': 'usdt',
-            'USDC': 'usdc'
+            'USDC': 'usdc',
+            '稳定币': 'stablecoin',
+            '收益': 'profit',
+            '损失': 'loss',
+            '盈利': 'profit',
+            '亏损': 'loss',
+            '钱包': 'wallet',
+            '合约': 'contract',
+            '期货': 'futures',
+            '杠杆': 'leverage',
+            '借贷': 'lending',
+            '挖矿': 'mining',
+            '质押': 'staking',
+            '流动性': 'liquidity',
+            '池子': 'pool',
+            '套利': 'arbitrage',
+            '空投': 'airdrop',
+            '解锁': 'unlock',
+            '锁仓': 'lock',
+            '释放': 'release',
+            '智能资金': 'smart-money',
+            '聪明钱': 'smart-money',
+            '机构': 'institutional',
+            '大户': 'whale',
+            '散户': 'retail',
+            '机器人': 'bot',
+            'AI': 'ai',
+            '人工智能': 'ai',
+            '代理': 'agent',
+            '社会': 'social',
+            '虚拟': 'virtual',
+            '世界': 'world',
+            '企业家': 'entrepreneur',
+            '价值': 'value',
+            '数百万': 'millions',
+            '美元': 'dollars',
+            '万': 'ten-thousand',
+            '亿': 'hundred-million',
+            '如何': 'how-to',
+            '指南': 'guide',
+            '教程': 'tutorial',
+            '报告': 'report',
+            '周报': 'weekly-report',
+            '日报': 'daily-report',
+            '分析': 'analysis',
+            '洞察': 'insights',
+            '预测': 'forecast',
+            '展望': 'outlook'
         }
         
         # 提取关键词并转换为英文
@@ -260,12 +316,16 @@ class ArticleGenerator:
         
         # 如果没有匹配到特定术语，使用通用描述
         if not english_parts:
-            if '分析' in title_lower or '数据' in title_lower:
+            if any(keyword in title_lower for keyword in ['分析', '数据', '报告', '洞察']):
                 english_parts.append('analysis')
-            if '交易' in title_lower or '转账' in title_lower:
+            if any(keyword in title_lower for keyword in ['交易', '转账', '资金', '流入', '流出']):
                 english_parts.append('transaction')
-            if '地址' in title_lower:
+            if any(keyword in title_lower for keyword in ['地址', '钱包', '合约']):
                 english_parts.append('address')
+            if any(keyword in title_lower for keyword in ['市场', '价格', '投资']):
+                english_parts.append('market')
+            if any(keyword in title_lower for keyword in ['鲸鱼', '巨鲸', '大户']):
+                english_parts.append('whale')
         
         # 如果还是没有关键词，使用默认值
         if not english_parts:
@@ -274,15 +334,10 @@ class ArticleGenerator:
         # 去重并限制数量
         english_parts = list(dict.fromkeys(english_parts))[:3]
         
-        # 生成slug
+        # 生成slug基础
         slug_base = '-'.join(english_parts)
-        slug = f"lookonchain-{slug_base}-{date_str}"
         
-        # 清理slug（确保只包含字母、数字、连字符）
-        slug = re.sub(r'[^a-z0-9\-]', '', slug.lower())
-        slug = re.sub(r'-+', '-', slug).strip('-')
-        
-        return slug
+        return slug_base
 
     def generate_article_tags(self, chinese_content: str, chinese_title: str) -> List[str]:
         """基于内容生成相关标签"""
