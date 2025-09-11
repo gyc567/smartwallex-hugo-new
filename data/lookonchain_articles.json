@@ -1,0 +1,30 @@
+{
+  "last_updated": "2025-09-11T08:40:32.308538",
+  "total_articles": 3,
+  "articles": [
+    {
+      "title": "Test Title",
+      "url": "https://example.com/test",
+      "title_hash": "c9e085fa5a6d5ae8cc2511e992642e90",
+      "content_hash": "9473fdd0d880a43c21b7778d34872157",
+      "processed_date": "2025-09-11T08:40:32.166267",
+      "content_length": 12
+    },
+    {
+      "title": "Test Title 1",
+      "url": "https://example.com/test1",
+      "title_hash": "a11a14d7b5f0165eb8f474976a1bf770",
+      "content_hash": "6dca5ac46103656e9c1c3b5860bfbd8e",
+      "processed_date": "2025-09-11T08:40:32.307771",
+      "content_length": 14
+    },
+    {
+      "title": "Test Title 2",
+      "url": "https://example.com/test2",
+      "title_hash": "21b51436efcff3da1ceaabfb0afd7012",
+      "content_hash": "7104d9df2585a77d0c18e79ad172ae30",
+      "processed_date": "2025-09-11T08:40:32.308529",
+      "content_length": 14
+    }
+  ]
+}

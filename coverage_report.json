@@ -1,0 +1,78 @@
+{
+  "timestamp": "2025-09-11T08:42:18.350930",
+  "total_percentage": 100.0,
+  "total_statements": 1293,
+  "total_covered": 1293,
+  "total_missing": 0,
+  "files": [
+    {
+      "file": "__init__.py",
+      "statements": 7,
+      "covered": 7,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "article_generator.py",
+      "statements": 238,
+      "covered": 238,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "config.py",
+      "statements": 38,
+      "covered": 38,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "enhanced_processor.py",
+      "statements": 108,
+      "covered": 108,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "enhanced_scraper.py",
+      "statements": 252,
+      "covered": 252,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "history_manager.py",
+      "statements": 111,
+      "covered": 111,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "professional_formatter.py",
+      "statements": 70,
+      "covered": 70,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "scraper.py",
+      "statements": 201,
+      "covered": 201,
+      "missing": 0,
+      "percentage": 100.0
+    },
+    {
+      "file": "translator.py",
+      "statements": 268,
+      "covered": 268,
+      "missing": 0,
+      "percentage": 100.0
+    }
+  ],
+  "test_results": {
+    "tests_run": 69,
+    "failures": 13,
+    "errors": 12,
+    "skipped": 0
+  }
+}
