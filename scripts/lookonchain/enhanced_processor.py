@@ -48,6 +48,7 @@ class EnhancedArticleProcessor:
         """翻译文章为中文"""
         try:
             print("🔄 开始翻译文章...")
+            print(f"📝 原文标题: {title[:50]}...")
             
             # 构建翻译提示
             translation_prompt = f"""
@@ -75,8 +76,9 @@ class EnhancedArticleProcessor:
                 max_tokens=MAX_TOKENS_TRANSLATION
             )
             
-            if response and 'choices' in response and len(response['choices']) > 0:
-                content_text = response['choices'][0]['message']['content']
+            if response and hasattr(response, 'choices') and response.choices:
+                content_text = response.choices[0].message.content
+                print(f"🔤 API返回内容长度: {len(content_text)} 字符")
                 
                 # 尝试解析JSON响应
                 try:
@@ -84,8 +86,13 @@ class EnhancedArticleProcessor:
                     translated_title = translation_result.get('title', title)
                     translated_content = translation_result.get('content', content)
                     
+                    # 验证翻译结果
+                    if translated_title == title and translated_content == content:
+                        print("⚠️ 警告：翻译内容与原文相同，可能翻译失败")
+                    
                     self.api_calls['translation'] += 1
                     print("✅ 文章翻译完成")
+                    print(f"📝 译文标题: {translated_title[:50]}...")
                     
                     return {
                         'title': translated_title,
@@ -93,16 +100,25 @@ class EnhancedArticleProcessor:
                         'success': True
                     }
                     
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
                     # 如果JSON解析失败，使用原始响应
                     self.api_calls['translation'] += 1
-                    print("⚠️ 翻译完成，但JSON解析失败，使用原始响应")
+                    print(f"⚠️ 翻译完成，但JSON解析失败: {e}")
+                    print(f"🔤 原始响应: {content_text[:200]}...")
                     
-                    return {
-                        'title': title,
-                        'content': content_text,
-                        'success': True
-                    }
+                    # 尝试从文本中提取翻译
+                    if any(char in content_text for char in ['的', '了', '是', '在', '有', '和', '与', '中']):
+                        return {
+                            'title': title,
+                            'content': content_text,
+                            'success': True
+                        }
+                    else:
+                        return {
+                            'title': title,
+                            'content': content,
+                            'success': False
+                        }
             else:
                 self.api_calls['failed'] += 1
                 print("❌ 翻译失败：API响应无效")
@@ -192,7 +208,8 @@ class EnhancedArticleProcessor:
         # 构建处理后的文章数据
         processed_article = {
             'title': translated_title,
-            'content': translated_content,
+            'content': translated_content,  # 翻译后的内容作为主内容
+            'translated_content': translated_content,  # 明确的翻译内容字段
             'summary': ai_summary,
             'url': url,
             'original_title': title,

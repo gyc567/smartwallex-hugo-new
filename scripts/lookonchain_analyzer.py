@@ -213,7 +213,7 @@ class LookOnChainAnalyzer:
             content += f"## 🤖 AI摘要\n\n{article['summary']}\n\n"
         
         # 添加原文翻译
-        content += f"## 📝 原文翻译\n\n{article['content']}\n\n"
+        content += f"## 📝 原文翻译\n\n{article['translated_content']}\n\n"
         
         # 添加原文链接
         content += f"---\n\n"
