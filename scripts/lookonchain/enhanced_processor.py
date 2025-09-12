@@ -44,6 +44,85 @@ class EnhancedArticleProcessor:
         
         print("🚀 增强文章处理器初始化完成")
     
+    def format_markdown_content(self, content: str) -> str:
+        """优化和格式化Markdown内容"""
+        try:
+            import re
+            
+            # 0. 清理内容 - 移除可能的JSON包装和转义字符
+            # 如果内容被包裹在JSON字符串中，提取出来
+            content = re.sub(r'^\s*\{\s*"content"\s*:\s*"(.+?)"\s*\}\s*$', r'\1', content, flags=re.DOTALL)
+            # 处理转义字符
+            content = re.sub(r'\\n', '\n', content)   # 修复转义的换行符
+            content = re.sub(r'\\"', '"', content)     # 修复转义的引号
+            content = re.sub(r'\\\\', '\\', content)   # 修复转义的反斜杠
+            
+            # 如果内容中有markdown代码块，直接提取其中的内容
+            code_block_pattern = r'```(?:json)?\s*\{?\s*"content"\s*:\s*"(.+?)"\s*\}?\s*```'
+            code_match = re.search(code_block_pattern, content, re.DOTALL)
+            if code_match:
+                content = code_match.group(1)
+                # 再次处理转义字符
+                content = re.sub(r'\\n', '\n', content)
+                content = re.sub(r'\\"', '"', content)
+            
+            # 1. 确保段落之间有适当的空行
+            content = re.sub(r'\n{3,}', '\n\n', content)  # 减少过多的空行
+            
+            # 更智能的段落分隔：在句子结束后添加双换行
+            content = re.sub(r'([。！？;])\s*([^\n])', r'\1\n\n\2', content)
+            
+            # 在列表项和标题后保持适当的间距
+            content = re.sub(r'(^#+\s+.+)$\n([^\n#])', r'\1\n\n\2', content, flags=re.MULTILINE)
+            content = re.sub(r'(^[-*+]\s+.+)$\n([^\n-*+])', r'\1\n\n\2', content, flags=re.MULTILINE)
+            
+            # 2. 处理链上地址 - 用代码块格式化
+            address_pattern = r'\b(0x[a-fA-F0-9]{40})\b'
+            content = re.sub(address_pattern, r'`\1`', content)
+            
+            # 3. 处理金额数字 - 添加千位分隔符
+            def format_amount(match):
+                amount = match.group(1)
+                currency = match.group(2)
+                try:
+                    # 处理带小数的数字
+                    if '.' in amount:
+                        whole, decimal = amount.split('.')
+                        whole = format(int(whole), ',')
+                        return f'**{whole}.{decimal}** {currency}'
+                    else:
+                        return f'**{format(int(amount), ",")}** {currency}'
+                except:
+                    return match.group(0)
+            
+            content = re.sub(r'(\d{4,}(?:\.\d+)?)\s*(USD|BTC|ETH)', format_amount, content)
+            
+            # 4. 处理百分比 - 加粗显示
+            content = re.sub(r'(\d+(?:\.\d+)?)%', r'**\1%**', content)
+            
+            # 5. 确保标题格式正确
+            content = re.sub(r'^#+\s*', lambda m: m.group(0).upper(), content, flags=re.MULTILINE)
+            
+            # 6. 处理时间表达 - 优化为中文习惯
+            time_patterns = [
+                (r'(\d+)\s*hours?', r'\1小时'),
+                (r'(\d+)\s*days?', r'\1天'),
+                (r'(\d+)\s*weeks?', r'\1周'),
+                (r'(\d+)\s*months?', r'\1个月'),
+            ]
+            for pattern, replacement in time_patterns:
+                content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
+            
+            # 7. 清理多余空格
+            content = re.sub(r'\s+', ' ', content)  # 多个空格变一个
+            content = re.sub(r'\n\s+\n', '\n\n', content)  # 清理空行中的空格
+            
+            return content.strip()
+            
+        except Exception as e:
+            print(f"⚠️ Markdown格式化失败: {e}")
+            return content
+    
     def translate_article(self, title: str, content: str) -> Dict[str, str]:
         """翻译文章为中文"""
         try:
@@ -52,19 +131,33 @@ class EnhancedArticleProcessor:
             
             # 构建翻译提示
             translation_prompt = f"""
-请将以下LookOnChain文章翻译为中文。要求：
-1. 保持专业术语的准确性
+请将以下LookOnChain文章翻译为高质量的中文Markdown格式。要求：
+
+## 格式要求
+1. 使用标准Markdown语法（标题、列表、加粗、引用等）
+2. 段落分明，结构清晰
+3. 重要数据、地址、金额使用等宽或加粗强调
+4. 保留原文的超链接格式
+
+## 内容要求
+1. 保持专业术语的准确性（如DeFi, DAO, TVL等可直接使用）
 2. 保持原文的技术性和专业性
 3. 确保翻译后的中文流畅自然
-4. 保留数据和技术细节
+4. 保留所有数据和技术细节
 5. 适当调整表达方式以符合中文阅读习惯
 
-标题：{title}
+## 特殊处理
+- 链上地址：保持原样，用`代码块`格式
+- 金额数字：使用千位分隔符，如1,234,567 USD
+- 百分比：保持数字格式，如15.5%
+- 时间表述：转换为中文习惯表达
 
-内容：
+原文标题：{title}
+
+原文内容：
 {content}
 
-请以JSON格式返回翻译结果，包含"title"和"content"字段。
+请以JSON格式返回翻译结果，包含"title"和"content"字段，其中content必须是有效的Markdown格式。
 """
             
             response = self.client.chat_completions_create(
@@ -90,27 +183,68 @@ class EnhancedArticleProcessor:
                     if translated_title == title and translated_content == content:
                         print("⚠️ 警告：翻译内容与原文相同，可能翻译失败")
                     
+                    # 格式化Markdown内容
+                    formatted_content = self.format_markdown_content(translated_content)
+                    
                     self.api_calls['translation'] += 1
                     print("✅ 文章翻译完成")
                     print(f"📝 译文标题: {translated_title[:50]}...")
+                    print(f"🎨 Markdown格式化完成")
                     
                     return {
                         'title': translated_title,
-                        'content': translated_content,
+                        'content': formatted_content,
                         'success': True
                     }
                     
                 except json.JSONDecodeError as e:
-                    # 如果JSON解析失败，使用原始响应
+                    # 如果JSON解析失败，尝试从markdown代码块中提取JSON
                     self.api_calls['translation'] += 1
                     print(f"⚠️ 翻译完成，但JSON解析失败: {e}")
-                    print(f"🔤 原始响应: {content_text[:200]}...")
                     
-                    # 尝试从文本中提取翻译
+                    # 尝试从```json代码块中提取内容
+                    import re
+                    json_pattern = r'```json\s*(\{.*?\})\s*```'
+                    match = re.search(json_pattern, content_text, re.DOTALL)
+                    
+                    if match:
+                        try:
+                            json_content = match.group(1)
+                            translation_result = json.loads(json_content)
+                            translated_title = translation_result.get('title', title)
+                            translated_content = translation_result.get('content', content)
+                            
+                            # 格式化提取的内容
+                            formatted_content = self.format_markdown_content(translated_content)
+                            print(f"✅ 从代码块成功提取JSON并格式化")
+                            
+                            return {
+                                'title': translated_title,
+                                'content': formatted_content,
+                                'success': True
+                            }
+                        except json.JSONDecodeError as e2:
+                            print(f"❌ 从代码块提取JSON后解析仍然失败: {e2}")
+                    
+                    # 如果无法提取JSON，尝试直接从响应中提取中文内容
                     if any(char in content_text for char in ['的', '了', '是', '在', '有', '和', '与', '中']):
+                        # 尝试提取标题和内容的纯文本
+                        title_pattern = r'"title":\s*"([^"]+)"'
+                        content_pattern = r'"content":\s*"([^"]+)"'
+                        
+                        title_match = re.search(title_pattern, content_text)
+                        content_match = re.search(content_pattern, content_text)
+                        
+                        extracted_title = title_match.group(1) if title_match else title
+                        extracted_content = content_match.group(1) if content_match else content_text
+                        
+                        # 格式化提取的内容
+                        formatted_content = self.format_markdown_content(extracted_content)
+                        print(f"🎨 正则表达式提取并格式化完成")
+                        
                         return {
-                            'title': title,
-                            'content': content_text,
+                            'title': extracted_title,
+                            'content': formatted_content,
                             'success': True
                         }
                     else:

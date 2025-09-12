@@ -213,13 +213,20 @@ class LookOnChainAnalyzer:
             content += f"## 🤖 AI摘要\n\n{article['summary']}\n\n"
         
         # 添加原文翻译
-        content += f"## 📝 原文翻译\n\n{article['translated_content']}\n\n"
+        content += f"## 📝 原文翻译\n\n"
+        content += f"<div class='translation-content'>\n\n"
+        content += f"{article['translated_content']}\n\n"
+        content += f"</div>\n\n"
         
-        # 添加原文链接
+        # 添加数据说明
         content += f"---\n\n"
-        content += f"**原文链接**: [{article.get('original_title', article['title'])}]({article['url']})\n\n"
-        content += f"**数据来源**: [LookOnChain](https://www.lookonchain.com)\n\n"
-        content += f"**处理时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        content += f"### 📊 数据来源\n\n"
+        content += f"- **原文链接**: [{article.get('original_title', article['title'])}]({article['url']})\n"
+        content += f"- **数据平台**: [LookOnChain](https://www.lookonchain.com)\n"
+        content += f"- **处理时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        # 添加免责声明
+        content += f"> 💡 **免责声明**: 本文内容仅供学习参考，不构成投资建议。加密货币投资风险较高，请谨慎决策。\n\n"
         
         return content
     
