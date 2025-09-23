@@ -32,6 +32,14 @@ cp scripts/.env.example scripts/.env.local
 # Run AI-powered crypto project analyzer
 python scripts/crypto-project-analyzer.py
 
+# Run crypto swap daily analyzer (new feature)
+python scripts/crypto_swap_analyzer.py
+
+# Run comprehensive tests for crypto swap analyzer
+python scripts/run_crypto_swap_tests.py          # Full test suite
+python scripts/run_crypto_swap_tests.py syntax   # Syntax check only
+python scripts/run_crypto_swap_tests.py unit     # Unit tests only
+
 # Manage project history
 python scripts/manage-history.py stats
 python scripts/manage-history.py list
@@ -96,7 +104,24 @@ npm run validate:setup
   - `openai_client.py` - Unified OpenAI-compatible API client
   - `.env.example` - Environment configuration template
 
-#### 2. Node.js Twitter Automation (`automation/`)
+#### 2. Crypto Swap Daily Analysis (`scripts/`)
+- **Purpose**: Generates professional perpetual contract trading signals for mainstream cryptocurrencies
+- **AI Integration**: Uses expert prompt system for Market Cycle Phases (MCP) analysis
+- **Schedule**: Daily at 05:00 Beijing time (UTC 21:00) via GitHub Actions crypto-swap-daily workflow
+- **Output**: Comprehensive daily report covering BTC, ETH, BNB, SOL, BCH
+- **Key Features**:
+  - Expert-level perpetual contract signal generation
+  - Risk management with 1:2+ risk-reward ratios
+  - MCP-based market phase analysis
+  - Technical indicators (RSI, MACD, Bollinger Bands)
+  - Professional trading recommendations
+- **Key Files**:
+  - `crypto_swap_analyzer.py` - Main analyzer with expert AI prompts
+  - `crypto_swap_config.py` - Configuration for 5 supported cryptocurrencies
+  - `test_crypto_swap_analyzer.py` - Comprehensive test suite (100% coverage)
+  - `run_crypto_swap_tests.py` - Test runner with multiple test modes
+
+#### 3. Node.js Twitter Automation (`automation/`)
 - **Purpose**: Discovers trending crypto content on Twitter, translates to Chinese
 - **Architecture**: Modular ES6 modules with comprehensive testing
 - **Key Components**:
@@ -107,14 +132,16 @@ npm run validate:setup
 
 ### Content Generation Workflow
 1. **GitHub Analysis**: Searches trending crypto projects, generates professional reviews
-2. **Twitter Monitoring**: Fetches trending tweets, translates content
-3. **Content Processing**: Applies SEO optimization, formatting, and branding
-4. **Hugo Integration**: Creates markdown files with proper frontmatter
-5. **Automated Publishing**: Commits changes and builds site via GitHub Actions
+2. **Crypto Swap Analysis**: Generates daily perpetual contract trading signals for BTC/ETH/BNB/SOL/BCH
+3. **Twitter Monitoring**: Fetches trending tweets, translates content
+4. **Content Processing**: Applies SEO optimization, formatting, and branding
+5. **Hugo Integration**: Creates markdown files with proper frontmatter
+6. **Automated Publishing**: Commits changes and builds site via GitHub Actions
 
 ### Configuration Management
 - **Hugo**: `hugo.toml` for site settings, SEO, and theme configuration
 - **Python**: `scripts/config.py` for analyzer settings and GitHub API parameters
+- **Crypto Swap**: `scripts/crypto_swap_config.py` for trading signal configuration
 - **Node.js**: Hierarchical config system in `automation/config/` (default/development/production)
 - **GitHub Actions**: Workflow files in `.github/workflows/`
 
