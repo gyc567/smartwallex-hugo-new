@@ -19,6 +19,7 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
 from openai_client import create_openai_client
+from price_fetcher import PriceFetcher, PriceData
 
 
 class CryptoSwapAnalyzer:
@@ -32,6 +33,7 @@ class CryptoSwapAnalyzer:
         self.setup_logging()
         self.openai_client = create_openai_client()
         self.expert_prompt = self._load_expert_prompt()
+        self.price_fetcher = PriceFetcher()
         
     def setup_logging(self) -> None:
         """设置日志系统"""
@@ -71,11 +73,17 @@ class CryptoSwapAnalyzer:
             生成的分析内容，失败时返回None
         """
         try:
-            # 构建针对特定代币的提示词
-            crypto_prompt = self.expert_prompt.replace('HYPE', crypto)
-            crypto_prompt = crypto_prompt.replace('2025-09-23', current_date)
+            # 获取实时价格数据
+            price_data = self.price_fetcher.get_realtime_price(crypto)
+            if not price_data:
+                self.logger.warning(f"无法获取 {crypto} 实时价格数据，将使用AI估算价格")
+                # 如果无法获取实时价格，使用AI估算
+                return self._generate_ai_only_analysis(crypto, current_date)
             
-            self.logger.info(f"开始为 {crypto} 生成合约分析...")
+            # 构建包含实时价格的提示词
+            crypto_prompt = self._build_price_aware_prompt(crypto, current_date, price_data)
+            
+            self.logger.info(f"开始为 {crypto} 生成合约分析 (实时价格: ${price_data.price:,.2f})...")
             
             response = self.openai_client.chat_completions_create(
                 messages=[{
@@ -92,6 +100,69 @@ class CryptoSwapAnalyzer:
             
         except Exception as e:
             self.logger.error(f"生成 {crypto} 分析失败: {e}")
+            return None
+    
+    def _build_price_aware_prompt(self, crypto: str, current_date: str, price_data: PriceData) -> str:
+        """构建包含实时价格的AI提示词"""
+        
+        # 将实时价格数据插入到专家提示词中
+        price_context = f"""
+=== 实时市场数据 (来源: {price_data.data_source}, 更新时间: {price_data.last_update.strftime('%Y-%m-%d %H:%M:%S UTC')}) ===
+
+**当前价格**: ${price_data.price:,.2f}
+**24小时变化**: {price_data.price_change_percent_24h:+.2f}% (${price_data.price_change_24h:+,.2f})
+**24小时最高价**: ${price_data.high_24h:,.2f}
+**24小时最低价**: ${price_data.low_24h:,.2f}
+**24小时成交量**: ${price_data.volume_24h:,.0f}
+
+=== 重要指令 ===
+
+**必须严格遵守以下规则：**
+1. **所有价格计算必须基于上述实时数据**
+2. **入场价必须基于24小时最高/最低价进行合理缓冲设置**
+3. **止损/止盈价必须基于实时价格和风险计算**
+4. **绝对禁止使用任何示例价格或历史价格**
+5. **如果实时数据与任何示例冲突，以实时数据为准**
+
+**违反上述规则将导致分析无效！**
+
+"""
+        
+        # 在专家提示词的开头插入价格上下文
+        enhanced_prompt = price_context + self.expert_prompt
+        enhanced_prompt = enhanced_prompt.replace('HYPE', crypto)
+        enhanced_prompt = enhanced_prompt.replace('2025-09-23', current_date)
+        
+        return enhanced_prompt
+    
+    def _generate_ai_only_analysis(self, crypto: str, current_date: str) -> Optional[str]:
+        """当无法获取实时价格时，使用纯AI分析（降级方案）"""
+        try:
+            self.logger.warning(f"使用AI估算为 {crypto} 生成分析（无实时价格）")
+            
+            # 构建不依赖实时价格的提示词
+            fallback_prompt = f"""
+注意：由于技术原因无法获取实时价格数据，请基于技术分析模式和合理估算生成分析。
+
+请在分析中明确标注价格数据为估算值，并建议用户核实实际价格。
+
+{self.expert_prompt.replace('HYPE', crypto).replace('2025-09-23', current_date)}
+"""
+            
+            response = self.openai_client.chat_completions_create(
+                messages=[{
+                    "role": "user", 
+                    "content": fallback_prompt
+                }],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            analysis = response.choices[0].message.content.strip()
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"AI估算分析也失败: {e}")
             return None
             
     def combine_analyses(self, analyses: Dict[str, str], current_date: str) -> str:

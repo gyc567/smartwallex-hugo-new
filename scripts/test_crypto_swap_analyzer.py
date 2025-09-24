@@ -13,6 +13,7 @@ import shutil
 import os
 import sys
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from io import StringIO
@@ -22,6 +23,7 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
 from crypto_swap_analyzer import CryptoSwapAnalyzer
+from price_fetcher import PriceFetcher, PriceData
 from crypto_swap_config import (
     SUPPORTED_CRYPTOS, ANALYSIS_CONFIG, ARTICLE_CONFIG,
     get_crypto_list, get_crypto_config, validate_config,
@@ -120,171 +122,258 @@ class TestCryptoSwapAnalyzer(unittest.TestCase):
     @mock.patch('logging.FileHandler')
     def test_analyzer_initialization(self, mock_file_handler, mock_client, mock_script_dir):
         """测试分析器初始化"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value = mock.Mock()
-        mock_file_handler.return_value = mock.Mock()
-        
-        analyzer = CryptoSwapAnalyzer()
-        
-        self.assertIsNotNone(analyzer.logger)
-        self.assertIsNotNone(analyzer.openai_client)
-        self.assertEqual(analyzer.expert_prompt, self.mock_expert_prompt)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            mock_client.return_value = mock.Mock()
+            mock_file_handler.return_value = mock.Mock()
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock，避免日志系统错误
+            mock_file_handler.return_value.level = logging.INFO
+            
+            analyzer = CryptoSwapAnalyzer()
+            
+            self.assertIsNotNone(analyzer.logger)
+            self.assertIsNotNone(analyzer.openai_client)
+            self.assertEqual(analyzer.expert_prompt, "测试专家提示词HYPE")
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     def test_load_expert_prompt_file_not_found(self, mock_script_dir):
         """测试专家提示词文件不存在的情况"""
-        mock_script_dir.parent = self.test_dir / 'nonexistent'
-        
-        with self.assertRaises(FileNotFoundError):
-            CryptoSwapAnalyzer()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir) / 'nonexistent'
+            
+            with self.assertRaises(FileNotFoundError):
+                CryptoSwapAnalyzer()
             
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
     @mock.patch('logging.FileHandler')
     def test_generate_analysis_for_crypto_success(self, mock_file_handler, mock_client, mock_script_dir):
         """测试成功生成单个加密货币分析"""
-        mock_script_dir.parent = self.test_dir
-        
-        # 模拟OpenAI响应
-        mock_response = mock.Mock()
-        mock_choice = mock.Mock()
-        mock_message = mock.Mock()
-        mock_message.content = "BTC分析结果"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.return_value.chat_completions_create.return_value = mock_response
-        
-        analyzer = CryptoSwapAnalyzer()
-        result = analyzer.generate_analysis_for_crypto('BTC', '2025-09-23')
-        
-        self.assertEqual(result, "BTC分析结果")
-        mock_client.return_value.chat_completions_create.assert_called_once()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 模拟OpenAI响应
+            mock_response = mock.Mock()
+            mock_choice = mock.Mock()
+            mock_message = mock.Mock()
+            mock_message.content = "BTC分析结果"
+            mock_choice.message = mock_message
+            mock_response.choices = [mock_choice]
+            mock_client.return_value.chat_completions_create.return_value = mock_response
+            
+            analyzer = CryptoSwapAnalyzer()
+            result = analyzer.generate_analysis_for_crypto('BTC', '2025-09-23')
+            
+            self.assertEqual(result, "BTC分析结果")
+            mock_client.return_value.chat_completions_create.assert_called_once()
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_generate_analysis_for_crypto_failure(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_generate_analysis_for_crypto_failure(self, mock_file_handler, mock_client, mock_script_dir):
         """测试生成分析失败的情况"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value.chat_completions_create.side_effect = Exception("API错误")
-        
-        analyzer = CryptoSwapAnalyzer()
-        result = analyzer.generate_analysis_for_crypto('BTC', '2025-09-23')
-        
-        self.assertIsNone(result)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value.chat_completions_create.side_effect = Exception("API错误")
+            
+            analyzer = CryptoSwapAnalyzer()
+            result = analyzer.generate_analysis_for_crypto('BTC', '2025-09-23')
+            
+            self.assertIsNone(result)
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_combine_analyses(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_combine_analyses(self, mock_file_handler, mock_client, mock_script_dir):
         """测试合并分析结果"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value = mock.Mock()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value = mock.Mock()
+            
+            analyzer = CryptoSwapAnalyzer()
+            
+            analyses = {
+                'BTC': 'BTC分析内容',
+                'ETH': 'ETH分析内容'
+            }
         
-        analyzer = CryptoSwapAnalyzer()
-        
-        analyses = {
-            'BTC': 'BTC分析内容',
-            'ETH': 'ETH分析内容'
-        }
-        
-        result = analyzer.combine_analyses(analyses, '2025-09-23')
-        
-        # 检查文章结构
-        self.assertIn('title: "2025-09-23 加密货币永续合约交易信号日报"', result)
-        self.assertIn('BTC分析内容', result)
-        self.assertIn('ETH分析内容', result)
-        self.assertIn('风险提示', result)
-        self.assertIn('SmartWallex', result)
+            result = analyzer.combine_analyses(analyses, '2025-09-23')
+            
+            # 检查文章结构
+            self.assertIn('title: "2025-09-23 加密货币永续合约交易信号日报"', result)
+            self.assertIn('BTC分析内容', result)
+            self.assertIn('ETH分析内容', result)
+            self.assertIn('风险提示', result)
+            self.assertIn('SmartWallex', result)
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_combine_analyses_with_missing_crypto(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_combine_analyses_with_missing_crypto(self, mock_file_handler, mock_client, mock_script_dir):
         """测试合并分析时部分币种缺失的情况"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value = mock.Mock()
-        
-        analyzer = CryptoSwapAnalyzer()
-        
-        # 只有部分币种的分析
-        analyses = {'BTC': 'BTC分析内容'}
-        
-        result = analyzer.combine_analyses(analyses, '2025-09-23')
-        
-        # 应该包含成功的分析
-        self.assertIn('BTC分析内容', result)
-        # 应该包含缺失币种的提示
-        self.assertIn('暂时无法获取', result)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value = mock.Mock()
+            
+            analyzer = CryptoSwapAnalyzer()
+            
+            # 只有部分币种的分析
+            analyses = {'BTC': 'BTC分析内容'}
+            
+            result = analyzer.combine_analyses(analyses, '2025-09-23')
+            
+            # 应该包含成功的分析
+            self.assertIn('BTC分析内容', result)
+            # 应该包含缺失币种的提示
+            self.assertIn('暂时无法获取', result)
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_save_article(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_save_article(self, mock_file_handler, mock_client, mock_script_dir):
         """测试保存文章"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value = mock.Mock()
-        
-        analyzer = CryptoSwapAnalyzer()
-        
-        test_content = "测试文章内容"
-        filepath = analyzer.save_article(test_content, '2025-09-23')
-        
-        # 检查文件是否存在
-        self.assertTrue(Path(filepath).exists())
-        
-        # 检查文件内容
-        with open(filepath, 'r', encoding='utf-8') as f:
-            saved_content = f.read()
-        self.assertEqual(saved_content, test_content)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value = mock.Mock()
+            
+            analyzer = CryptoSwapAnalyzer()
+            
+            test_content = "测试文章内容"
+            filepath = analyzer.save_article(test_content, '2025-09-23')
+            
+            # 检查文件是否存在
+            self.assertTrue(Path(filepath).exists())
+            
+            # 检查文件内容
+            with open(filepath, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+            self.assertEqual(saved_content, test_content)
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_run_analysis_success(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_run_analysis_success(self, mock_file_handler, mock_client, mock_script_dir):
         """测试完整分析流程成功"""
-        mock_script_dir.parent = self.test_dir
-        
-        # 模拟OpenAI响应
-        mock_response = mock.Mock()
-        mock_choice = mock.Mock()
-        mock_message = mock.Mock()
-        mock_message.content = "分析结果"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.return_value.chat_completions_create.return_value = mock_response
-        
-        analyzer = CryptoSwapAnalyzer()
-        result = analyzer.run_analysis()
-        
-        self.assertTrue(result)
-        
-        # 检查是否生成了文章文件
-        posts_dir = self.test_dir / 'content' / 'posts'
-        if posts_dir.exists():
-            files = list(posts_dir.glob('*.md'))
-            self.assertGreater(len(files), 0)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            
+            # 模拟OpenAI响应
+            mock_response = mock.Mock()
+            mock_choice = mock.Mock()
+            mock_message = mock.Mock()
+            mock_message.content = "分析结果"
+            mock_choice.message = mock_message
+            mock_response.choices = [mock_choice]
+            mock_client.return_value.chat_completions_create.return_value = mock_response
+            
+            analyzer = CryptoSwapAnalyzer()
+            result = analyzer.run_analysis()
+            
+            self.assertTrue(result)
+            
+            # 检查是否生成了文章文件
+            posts_dir = Path(temp_dir) / 'content' / 'posts'
+            if posts_dir.exists():
+                files = list(posts_dir.glob('*.md'))
+                self.assertGreater(len(files), 0)
             
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_run_analysis_all_fail(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_run_analysis_all_fail(self, mock_file_handler, mock_client, mock_script_dir):
         """测试所有分析都失败的情况"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value.chat_completions_create.side_effect = Exception("API错误")
-        
-        analyzer = CryptoSwapAnalyzer()
-        result = analyzer.run_analysis()
-        
-        self.assertFalse(result)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value.chat_completions_create.side_effect = Exception("API错误")
+            
+            analyzer = CryptoSwapAnalyzer()
+            result = analyzer.run_analysis()
+            
+            self.assertFalse(result)
         
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_setup_logging(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_setup_logging(self, mock_file_handler, mock_client, mock_script_dir):
         """测试日志设置"""
-        mock_script_dir.parent = self.test_dir
-        mock_client.return_value = mock.Mock()
-        
-        analyzer = CryptoSwapAnalyzer()
-        
-        # 测试日志记录
-        test_message = "测试日志消息"
-        with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
-            analyzer.logger.info(test_message)
+        # 创建临时目录用于日志文件
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+            
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            mock_client.return_value = mock.Mock()
+            
+            analyzer = CryptoSwapAnalyzer()
+            
+            # 测试日志记录
+            test_message = "测试日志消息"
+            with mock.patch('sys.stdout', new_callable=StringIO) as mock_stdout:
+                analyzer.logger.info(test_message)
             output = mock_stdout.getvalue()
             # 注意：由于日志可能输出到文件，这里主要测试logger存在
             
@@ -305,40 +394,203 @@ class TestIntegration(unittest.TestCase):
     @mock.patch.dict(os.environ, {'OPENAI_API_KEY': 'test_key'})
     @mock.patch('crypto_swap_analyzer.script_dir')
     @mock.patch('crypto_swap_analyzer.create_openai_client')
-    def test_end_to_end_workflow(self, mock_client, mock_script_dir):
+    @mock.patch('logging.FileHandler')
+    def test_end_to_end_workflow(self, mock_file_handler, mock_client, mock_script_dir):
         """端到端工作流测试"""
-        mock_script_dir.parent = self.test_dir
-        
-        # 创建专家提示词文件
-        expert_prompt_file = self.test_dir / '加密货币合约专家.md'
-        with open(expert_prompt_file, 'w', encoding='utf-8') as f:
-            f.write("测试专家提示词HYPE")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_script_dir.parent = Path(temp_dir)
             
-        # 模拟OpenAI响应
+            # 正确设置mock
+            mock_file_handler.return_value.level = logging.INFO
+            
+            # 创建专家提示词文件
+            expert_prompt_file = Path(temp_dir) / '加密货币合约专家.md'
+            with open(expert_prompt_file, 'w', encoding='utf-8') as f:
+                f.write("测试专家提示词HYPE")
+                
+            # 模拟OpenAI响应
+            mock_response = mock.Mock()
+            mock_choice = mock.Mock()
+            mock_message = mock.Mock()
+            mock_message.content = "详细的合约分析结果"
+            mock_choice.message = mock_message
+            mock_response.choices = [mock_choice]
+            mock_client.return_value.chat_completions_create.return_value = mock_response
+            
+            # 运行分析器
+            analyzer = CryptoSwapAnalyzer()
+            success = analyzer.run_analysis()
+            
+            self.assertTrue(success)
+            
+            # 验证生成的文件
+            posts_dir = Path(temp_dir) / 'content' / 'posts'
+            if posts_dir.exists():
+                md_files = list(posts_dir.glob('crypto-swap-daily-*.md'))
+                if md_files:
+                    with open(md_files[0], 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        self.assertIn('加密货币永续合约交易信号日报', content)
+                        self.assertIn('BTC', content)
+                        self.assertIn('风险提示', content)
+
+
+class TestPriceFetcher(unittest.TestCase):
+    """测试价格获取器"""
+    
+    def setUp(self):
+        """设置测试环境"""
+        self.fetcher = PriceFetcher()
+    
+    def test_price_data_structure(self):
+        """测试PriceData数据结构"""
+        from datetime import datetime, timezone
+        
+        price_data = PriceData(
+            symbol='BTC',
+            price=50000.0,
+            price_change_24h=1000.0,
+            price_change_percent_24h=2.0,
+            high_24h=51000.0,
+            low_24h=49000.0,
+            volume_24h=1000000000.0,
+            last_update=datetime.now(timezone.utc),
+            data_source="Test"
+        )
+        
+        self.assertEqual(price_data.symbol, 'BTC')
+        self.assertEqual(price_data.price, 50000.0)
+        self.assertEqual(price_data.data_source, "Test")
+    
+    @mock.patch('requests.get')
+    def test_fetch_from_binance_success(self, mock_get):
+        """测试从Binance成功获取价格"""
+        # 模拟Binance API响应
+        mock_ticker_response = mock.Mock()
+        mock_ticker_response.json.return_value = {
+            'lastPrice': '50000.00',
+            'priceChange': '1000.00',
+            'priceChangePercent': '2.0',
+            'highPrice': '51000.00',
+            'lowPrice': '49000.00',
+            'volume': '1000000.0'
+        }
+        
+        mock_klines_response = mock.Mock()
+        mock_klines_response.json.return_value = [[['50000.0']]]
+        
+        mock_get.side_effect = [mock_ticker_response, mock_klines_response]
+        
+        price_data = self.fetcher._fetch_from_binance('BTC')
+        
+        self.assertIsNotNone(price_data)
+        self.assertEqual(price_data.symbol, 'BTC')
+        self.assertEqual(price_data.price, 50000.0)
+        self.assertEqual(price_data.data_source, 'Binance')
+    
+    @mock.patch('requests.get')
+    def test_fetch_from_binance_failure(self, mock_get):
+        """测试从Binance获取价格失败"""
+        mock_get.side_effect = Exception("API错误")
+        
+        price_data = self.fetcher._fetch_from_binance('BTC')
+        
+        self.assertIsNone(price_data)
+    
+    @mock.patch('requests.get')
+    def test_fetch_from_coinpaprika_success(self, mock_get):
+        """测试从CoinPaprika成功获取价格"""
         mock_response = mock.Mock()
-        mock_choice = mock.Mock()
-        mock_message = mock.Mock()
-        mock_message.content = "详细的合约分析结果"
-        mock_choice.message = mock_message
-        mock_response.choices = [mock_choice]
-        mock_client.return_value.chat_completions_create.return_value = mock_response
+        mock_response.json.return_value = {
+            'quotes': {
+                'USD': {
+                    'price': 50000.0,
+                    'price_change_24h': 1000.0,
+                    'percent_change_24h': 2.0,
+                    'high_24h': 51000.0,
+                    'low_24h': 49000.0,
+                    'volume_24h': 1000000000.0
+                }
+            }
+        }
+        mock_get.return_value = mock_response
         
-        # 运行分析器
-        analyzer = CryptoSwapAnalyzer()
-        success = analyzer.run_analysis()
+        price_data = self.fetcher._fetch_from_coinpaprika('BTC')
         
-        self.assertTrue(success)
+        self.assertIsNotNone(price_data)
+        self.assertEqual(price_data.symbol, 'BTC')
+        self.assertEqual(price_data.price, 50000.0)
+        self.assertEqual(price_data.data_source, 'CoinPaprika')
+    
+    def test_get_coin_ids(self):
+        """测试获取各个平台的coin ID"""
+        # CoinMarketCap ID测试
+        self.assertEqual(self.fetcher._get_coin_id('BTC'), '1')
+        self.assertEqual(self.fetcher._get_coin_id('ETH'), '1027')
+        self.assertEqual(self.fetcher._get_coin_id('INVALID'), '')
         
-        # 验证生成的文件
-        posts_dir = self.test_dir / 'content' / 'posts'
-        if posts_dir.exists():
-            md_files = list(posts_dir.glob('crypto-swap-daily-*.md'))
-            if md_files:
-                with open(md_files[0], 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    self.assertIn('加密货币永续合约交易信号日报', content)
-                    self.assertIn('BTC', content)
-                    self.assertIn('风险提示', content)
+        # CoinPaprika ID测试
+        self.assertEqual(self.fetcher._get_coinpaprika_id('BTC'), 'btc-bitcoin')
+        self.assertEqual(self.fetcher._get_coinpaprika_id('ETH'), 'eth-ethereum')
+        self.assertEqual(self.fetcher._get_coinpaprika_id('INVALID'), '')
+        
+        # CoinGecko ID测试
+        self.assertEqual(self.fetcher._get_coingecko_id('BTC'), 'bitcoin')
+        self.assertEqual(self.fetcher._get_coingecko_id('ETH'), 'ethereum')
+        self.assertEqual(self.fetcher._get_coingecko_id('INVALID'), '')
+    
+    def test_cache_functionality(self):
+        """测试缓存功能"""
+        # 创建测试数据
+        test_price = PriceData(
+            symbol='BTC',
+            price=50000.0,
+            price_change_24h=1000.0,
+            price_change_percent_24h=2.0,
+            high_24h=51000.0,
+            low_24h=49000.0,
+            volume_24h=1000000000.0,
+            last_update=datetime.now(timezone.utc),
+            data_source="Test"
+        )
+        
+        # 测试缓存为空
+        cached_data = self.fetcher._get_from_cache('BTC')
+        self.assertIsNone(cached_data)
+        
+        # 测试更新缓存
+        self.fetcher._update_cache('BTC', test_price)
+        cached_data = self.fetcher._get_from_cache('BTC')
+        self.assertIsNotNone(cached_data)
+        self.assertEqual(cached_data.price, 50000.0)
+    
+    @mock.patch('price_fetcher.PriceFetcher._fetch_from_binance')
+    def test_get_realtime_price_with_cache(self, mock_binance):
+        """测试获取实时价格（使用缓存）"""
+        # 模拟API响应
+        mock_price = PriceData(
+            symbol='BTC',
+            price=50000.0,
+            price_change_24h=1000.0,
+            price_change_percent_24h=2.0,
+            high_24h=51000.0,
+            low_24h=49000.0,
+            volume_24h=1000000000.0,
+            last_update=datetime.now(timezone.utc),
+            data_source="Binance"
+        )
+        mock_binance.return_value = mock_price
+        
+        # 第一次获取（应该调用API）
+        price_data = self.fetcher.get_realtime_price('BTC')
+        self.assertIsNotNone(price_data)
+        mock_binance.assert_called_once()
+        
+        # 第二次获取（应该使用缓存）
+        price_data = self.fetcher.get_realtime_price('BTC')
+        self.assertIsNotNone(price_data)
+        # binance应该还是只调用一次，因为第二次使用了缓存
+        mock_binance.assert_called_once()
 
 
 class TestMainFunction(unittest.TestCase):
