@@ -10,7 +10,7 @@ import os
 import sys
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -175,11 +175,12 @@ class CryptoSwapAnalyzer:
         Returns:
             合并后的文章内容
         """
-        # Hugo文章头部
+        # Hugo文章头部 (使用北京时间)
+        beijing_tz = timezone(timedelta(hours=8))
         frontmatter = f"""---
 title: "{current_date} 加密货币永续合约交易信号日报"
 description: "专业分析BTC、ETH、BNB、SOL、BCH五大主流币种的永续合约交易机会，基于MCP市场周期理论提供精准入场信号"
-date: {datetime.now(timezone.utc).isoformat()}
+date: {datetime.now(beijing_tz).isoformat()}
 tags: ["加密货币", "永续合约", "交易信号", "技术分析", "BTC", "ETH", "BNB", "SOL", "BCH"]
 categories: ["合约交易"]
 author: "SmartWallex团队"
@@ -248,8 +249,9 @@ keywords: ["加密货币合约", "永续合约信号", "BTC分析", "ETH交易",
         Returns:
             保存的文件路径
         """
-        # 生成文件名
-        timestamp = datetime.now().strftime('%H%M%S')
+        # 生成文件名 (使用北京时间)
+        beijing_tz = timezone(timedelta(hours=8))
+        timestamp = datetime.now(beijing_tz).strftime('%H%M%S')
         filename = f"crypto-swap-daily-{current_date}-{timestamp}.md"
         
         # 保存到content/posts目录
@@ -274,7 +276,9 @@ keywords: ["加密货币合约", "永续合约信号", "BTC分析", "ETH交易",
             成功返回True，失败返回False
         """
         try:
-            current_date = datetime.now().strftime('%Y-%m-%d')
+            # 使用北京时间 (UTC+8)
+            beijing_tz = timezone(timedelta(hours=8))
+            current_date = datetime.now(beijing_tz).strftime('%Y-%m-%d')
             self.logger.info(f"开始执行 {current_date} 加密货币合约分析")
             
             # 为每个币种生成分析
