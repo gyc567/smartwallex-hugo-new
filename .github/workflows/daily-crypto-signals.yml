@@ -198,7 +198,10 @@ jobs:
         
         # 读取新信号
         with open('signals.json', 'r') as f:
-          new_signals = json.load(f)
+          signals_data = json.load(f)
+        
+        # 获取信号列表
+        new_signals = signals_data.get('signals', [])
         
         # 添加时间戳和批次信息
         batch_id = datetime.datetime.utcnow().isoformat()
