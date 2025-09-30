@@ -1,0 +1,271 @@
+name: Daily Crypto Trading Signals
+
+on:
+  schedule:
+    # 每天UTC时间21:00运行（北京时间05:00）- 适合亚洲市场交易时段
+    - cron: '0 21 * * *'
+  workflow_dispatch: # 允许手动触发
+    inputs:
+      test_mode:
+        description: 'Test mode (send to test channel instead of production)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  generate-and-send-signals:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 允许写仓库内容
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install Python dependencies
+      timeout-minutes: 10
+      run: |
+        echo "📦 安装 Python 依赖..."
+        python -m pip install --upgrade pip
+        pip install -r scripts/requirements.txt
+        echo "✅ 依赖安装完成"
+
+    - name: Check Python syntax
+      run: |
+        echo "🔍 检查Python语法..."
+        python scripts/check-syntax.py
+        echo "🔍 检查Telegram sender语法..."
+        python -m py_compile scripts/telegram_sender.py
+
+    - name: Run Telegram sender tests
+      run: |
+        echo "🧪 运行Telegram sender测试..."
+        python scripts/test_telegram_sender.py
+        echo "✅ Telegram sender测试通过"
+
+    - name: Test Telegram connection
+      id: telegram_test
+      continue-on-error: true
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHANNEL_ID: ${{ github.event.inputs.test_mode == 'true' && secrets.TELEGRAM_TEST_CHANNEL_ID || secrets.TELEGRAM_CHANNEL_ID }}
+      run: |
+        echo "🔗 测试Telegram连接..."
+        if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHANNEL_ID" ]; then
+          python scripts/telegram_sender.py --token "$TELEGRAM_BOT_TOKEN" --channel "$TELEGRAM_CHANNEL_ID" --message "🧪 Connection test" --test
+          echo "telegram_connected=true" >> $GITHUB_OUTPUT
+          echo "✅ Telegram连接成功"
+        else
+          echo "telegram_connected=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Telegram配置未设置，跳过发送"
+        fi
+
+    - name: Generate trading signals
+      id: signals
+      timeout-minutes: 30
+      continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_ACTIONS: true
+      run: |
+        echo "🚀 开始生成加密货币交易信号..."
+        cd ${{ github.workspace }}
+        
+        # 使用专业的交易信号生成器
+        python scripts/trading_signal_generator.py \
+          --count 3 \
+          --output signals.json \
+          --include-summary
+        
+        if [ $? -eq 0 ]; then
+          echo "✅ 交易信号生成完成"
+          SIGNALS_COUNT=$(python -c "import json; print(len(json.load(open('signals.json'))['signals']))")
+          echo "signals_generated=true" >> $GITHUB_OUTPUT
+          echo "signals_count=$SIGNALS_COUNT" >> $GITHUB_OUTPUT
+        else
+          echo "❌ 交易信号生成失败"
+          echo "signals_generated=false" >> $GITHUB_OUTPUT
+          echo "signals_count=0" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Send signals to Telegram
+      id: telegram_send
+      if: steps.telegram_test.outputs.telegram_connected == 'true' && steps.signals.outputs.signals_generated == 'true'
+      continue-on-error: true
+      env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHANNEL_ID: ${{ github.event.inputs.test_mode == 'true' && secrets.TELEGRAM_TEST_CHANNEL_ID || secrets.TELEGRAM_CHANNEL_ID }}
+      run: |
+        echo "📤 发送交易信号到Telegram..."
+        
+        # 创建发送脚本
+        cat > send_signals.py << 'EOF'
+        import json
+        import sys
+        sys.path.append('scripts')
+        from telegram_sender import TelegramSender
+        
+        def main():
+            sender = TelegramSender(sys.argv[1], sys.argv[2])
+            
+            # 发送每日汇总
+            with open('signals.json', 'r') as f:
+                data = json.load(f)
+            
+            summary = f"""📊 <b>SmartWallex Daily Trading Signals</b>
+        
+        🗓️ <b>Date:</b> {data['market_summary']['date']}
+        ⏰ <b>Time:</b> {data['market_summary']['time']}
+        📈 <b>Signals Generated:</b> {len(data['signals'])}
+        🎯 <b>Market Sentiment:</b> {data['market_summary']['market_sentiment']}
+        🔔 <i>Individual signals below... </i>"""
+            
+            success = sender.send_message(summary)
+            if not success:
+                return False
+            
+            # 发送每个信号
+            signals_sent = 0
+            for signal in data['signals']:
+                if sender.send_trading_signal(signal):
+                    signals_sent += 1
+            
+            print(f"telegram_signals_sent={signals_sent}")
+            # Write to file for GitHub Actions
+            with open('telegram_signals_sent.txt', 'w') as f:
+                f.write(str(signals_sent))
+            return signals_sent > 0
+        
+        if __name__ == '__main__':
+            success = main()
+            sys.exit(0 if success else 1)
+        EOF
+        
+        # 执行发送
+        python send_signals.py "$TELEGRAM_BOT_TOKEN" "$TELEGRAM_CHANNEL_ID"
+        
+        # 读取结果
+        if [ -f "telegram_signals_sent.txt" ]; then
+          SIGNALS_SENT=$(cat telegram_signals_sent.txt)
+          echo "telegram_signals_sent=$SIGNALS_SENT" >> $GITHUB_OUTPUT
+          echo "✅ 已发送 $SIGNALS_SENT 个交易信号到Telegram"
+        else
+          echo "telegram_signals_sent=0" >> $GITHUB_OUTPUT
+          echo "⚠️ 未发送任何信号"
+        fi
+
+    - name: Save signals history
+      if: steps.signals.outputs.signals_generated == 'true'
+      run: |
+        echo "💾 保存信号历史..."
+        mkdir -p data
+        
+        # 追加到历史文件
+        if [ ! -f "data/trading_signals.json" ]; then
+          echo "[]" > data/trading_signals.json
+        fi
+        
+        python -c "
+        import json
+        import datetime
+        
+        # 读取现有历史
+        try:
+          with open('data/trading_signals.json', 'r') as f:
+            history = json.load(f)
+        except:
+          history = []
+        
+        # 读取新信号
+        with open('signals.json', 'r') as f:
+          new_signals = json.load(f)
+        
+        # 添加时间戳和批次信息
+        batch_id = datetime.datetime.utcnow().isoformat()
+        for signal in new_signals:
+          signal['batch_id'] = batch_id
+          signal['created_at'] = datetime.datetime.utcnow().isoformat()
+          history.append(signal)
+        
+        # 保持最近1000条记录
+        history = history[-1000:]
+        
+        # 保存
+        with open('data/trading_signals.json', 'w') as f:
+          json.dump(history, f, indent=2)
+        
+        print(f'💾 Saved {len(new_signals)} signals to history (total: {len(history)})')
+        "
+
+    - name: Commit signals history
+      if: steps.signals.outputs.signals_generated == 'true'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        
+        git add data/trading_signals.json
+        if ! git diff --staged --quiet; then
+          git commit -m "🤖 Auto: Trading signals $(date +%Y-%m-%d) - ${{ steps.signals.outputs.signals_count }} signals"
+          git push
+        else
+          echo "No changes to commit"
+        fi
+
+    - name: Create summary
+      if: always()
+      run: |
+        echo "## 📊 Daily Crypto Trading Signals Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Date**: $(date +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Time**: $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ steps.signals.outputs.signals_generated }}" == "true" ]; then
+          echo "- **Signals Generated**: ${{ steps.signals.outputs.signals_count }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Signals Generated**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.telegram_test.outputs.telegram_connected }}" == "true" ]; then
+          echo "- **Telegram Status**: ✅ Connected" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.telegram_send.outputs.telegram_signals_sent }}" != "" ]; then
+            echo "- **Signals Sent**: ${{ steps.telegram_send.outputs.telegram_signals_sent }}" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "- **Telegram Status**: ⚠️ Not configured or connection failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ github.event.inputs.test_mode }}" == "true" ]; then
+          echo "- **Mode**: 🧪 Test Mode" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Mode**: 🚀 Production Mode" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # 显示历史统计
+        if [ -f "data/trading_signals.json" ]; then
+          TOTAL_SIGNALS=$(python3 -c "import json; print(len(json.load(open('data/trading_signals.json'))))" 2>/dev/null || echo "0")
+          echo "- **Total Historical Signals**: $TOTAL_SIGNALS" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Risk Warning" >> $GITHUB_STEP_SUMMARY
+        echo "Trading involves substantial risk. Past performance does not guarantee future results. Only invest what you can afford to lose." >> $GITHUB_STEP_SUMMARY

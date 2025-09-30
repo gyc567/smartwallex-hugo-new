@@ -1,0 +1,73 @@
+{
+  "signals": [
+    {
+      "symbol": "BNB/USDT",
+      "signal": "SELL",
+      "entry_price": "$527",
+      "stop_loss": "$533",
+      "take_profit": "$514",
+      "confidence": "66%",
+      "timestamp": "2025-09-30 10:34:30 UTC",
+      "indicators": {
+        "rsi": "73",
+        "macd": "Signal line crossover",
+        "volume": "Low",
+        "moving_averages": "Price below MA50"
+      },
+      "risk_reward_ratio": "1:2.1",
+      "timeframe": "1d",
+      "market_condition": "Volatile"
+    },
+    {
+      "symbol": "BCH/USDT",
+      "signal": "SELL",
+      "entry_price": "$347",
+      "stop_loss": "$353",
+      "take_profit": "$334",
+      "confidence": "73%",
+      "timestamp": "2025-09-30 10:34:30 UTC",
+      "indicators": {
+        "rsi": "57",
+        "macd": "Signal line crossover",
+        "volume": "Normal",
+        "moving_averages": "Death cross"
+      },
+      "risk_reward_ratio": "1:1.9",
+      "timeframe": "1h",
+      "market_condition": "Sideways"
+    },
+    {
+      "symbol": "SOL/USDT",
+      "signal": "BUY",
+      "entry_price": "$159.0",
+      "stop_loss": "$156.1",
+      "take_profit": "$164.1",
+      "confidence": "70%",
+      "timestamp": "2025-09-30 10:34:30 UTC",
+      "indicators": {
+        "rsi": "36",
+        "macd": "Bullish crossover",
+        "volume": "Normal",
+        "moving_averages": "Golden cross"
+      },
+      "risk_reward_ratio": "1:1.8",
+      "timeframe": "1h",
+      "market_condition": "Support test"
+    }
+  ],
+  "generated_at": "2025-09-30T10:34:30.556224",
+  "total_signals": 3,
+  "market_summary": {
+    "date": "2025-09-30",
+    "time": "10:34:30 UTC",
+    "market_sentiment": "Bearish",
+    "volatility": "High",
+    "dominant_trend": "Up",
+    "key_levels": {
+      "btc_support": "$40,802",
+      "btc_resistance": "$47,902",
+      "eth_support": "$2,590",
+      "eth_resistance": "$3,146"
+    }
+  }
+}
