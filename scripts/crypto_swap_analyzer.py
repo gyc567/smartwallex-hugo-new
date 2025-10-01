@@ -20,6 +20,7 @@ sys.path.insert(0, str(script_dir))
 
 from openai_client import create_openai_client
 from price_fetcher import PriceFetcher, PriceData
+from notification_service import notify_realtime_data_failure, notify_trading_pause
 
 
 class CryptoSwapAnalyzer:
@@ -62,23 +63,51 @@ class CryptoSwapAnalyzer:
             self.logger.error(f"加载专家提示词失败: {e}")
             raise
             
-    def generate_analysis_for_crypto(self, crypto: str, current_date: str) -> Optional[str]:
-        """为单个加密货币生成分析
+    def generate_analysis_for_crypto(self, crypto: str, current_date: str) -> str:
+        """为单个加密货币生成分析 - 严格要求实时数据
         
         Args:
             crypto: 加密货币符号 (如 'BTC')
             current_date: 当前日期 (格式: 'YYYY-MM-DD')
             
         Returns:
-            生成的分析内容，失败时返回None
+            生成的分析内容
+            
+        Raises:
+            RuntimeError: 当实时数据获取失败时抛出
         """
         try:
-            # 获取实时价格数据
+            self.logger.info(f"开始为 {crypto} 获取实时价格数据...")
+            
+            # 严格要求获取实时价格数据，失败时报错
             price_data = self.price_fetcher.get_realtime_price(crypto)
+            
             if not price_data:
-                self.logger.warning(f"无法获取 {crypto} 实时价格数据，将使用AI估算价格")
-                # 如果无法获取实时价格，使用AI估算
-                return self._generate_ai_only_analysis(crypto, current_date)
+                # 这种情况不应该发生，因为get_realtime_price会抛出异常
+                error_msg = f"❌ CRITICAL: 无法获取 {crypto} 实时价格数据。交易程序已暂停。"
+                self.logger.error(error_msg)
+                
+                # 通知用户
+                notify_realtime_data_failure(crypto, error_msg, {
+                    "function": "generate_analysis_for_crypto",
+                    "current_date": current_date,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+                
+                raise RuntimeError(error_msg)
+            
+            # 验证价格数据合理性
+            if price_data.price <= 0:
+                error_msg = f"❌ CRITICAL: {crypto} 实时价格数据异常: ${price_data.price:,.2f}。交易程序已暂停。"
+                self.logger.error(error_msg)
+                
+                notify_realtime_data_failure(crypto, error_msg, {
+                    "function": "generate_analysis_for_crypto",
+                    "price_data": str(price_data),
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+                
+                raise RuntimeError(error_msg)
             
             # 构建包含实时价格的提示词
             crypto_prompt = self._build_price_aware_prompt(crypto, current_date, price_data)
@@ -95,12 +124,25 @@ class CryptoSwapAnalyzer:
             )
             
             analysis = response.choices[0].message.content.strip()
-            self.logger.info(f"成功生成 {crypto} 分析，长度: {len(analysis)} 字符")
+            self.logger.info(f"✅ 成功生成 {crypto} 分析，长度: {len(analysis)} 字符")
             return analysis
             
+        except RuntimeError:
+            # 重新抛出RuntimeError，让上层处理
+            raise
         except Exception as e:
-            self.logger.error(f"生成 {crypto} 分析失败: {e}")
-            return None
+            error_msg = f"生成 {crypto} 分析失败: {e}"
+            self.logger.error(error_msg)
+            
+            # 通知用户
+            notify_realtime_data_failure(crypto, error_msg, {
+                "function": "generate_analysis_for_crypto",
+                "current_date": current_date,
+                "error_type": type(e).__name__,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            raise RuntimeError(error_msg)
     
     def _build_price_aware_prompt(self, crypto: str, current_date: str, price_data: PriceData) -> str:
         """构建包含实时价格的AI提示词"""
@@ -270,10 +312,13 @@ keywords: ["加密货币合约", "永续合约信号", "BTC分析", "ETH交易",
             raise
             
     def run_analysis(self) -> bool:
-        """执行完整的分析流程
+        """执行完整的分析流程 - 严格要求实时数据
         
         Returns:
             成功返回True，失败返回False
+            
+        Raises:
+            RuntimeError: 当实时数据获取失败时抛出，上层调用者需要处理
         """
         try:
             # 使用北京时间 (UTC+8)
@@ -283,12 +328,108 @@ keywords: ["加密货币合约", "永续合约信号", "BTC分析", "ETH交易",
             
             # 为每个币种生成分析
             analyses = {}
+            failed_cryptos = []
+            
             for crypto in self.SUPPORTED_CRYPTOS:
-                analysis = self.generate_analysis_for_crypto(crypto, current_date)
-                if analysis:
+                try:
+                    analysis = self.generate_analysis_for_crypto(crypto, current_date)
                     analyses[crypto] = analysis
-                else:
-                    self.logger.warning(f"{crypto} 分析生成失败，将在文章中标注")
+                    self.logger.info(f"✅ {crypto} 分析生成成功")
+                except RuntimeError as e:
+                    # 实时数据失败，记录失败的币种
+                    failed_cryptos.append(crypto)
+                    self.logger.error(f"❌ {crypto} 分析生成失败: {e}")
+                    continue
+                except Exception as e:
+                    # 其他错误，也记录为失败
+                    failed_cryptos.append(crypto)
+                    self.logger.error(f"❌ {crypto} 分析生成失败: {e}")
+                    continue
+            
+            # 如果有任何币种失败，报错并暂停交易
+            if failed_cryptos:
+                error_msg = f"❌ CRITICAL: 以下币种实时数据获取失败，无法生成分析: {', '.join(failed_cryptos)}。为确保交易安全，程序已暂停。"
+                self.logger.error(error_msg)
+                
+                # 通知用户交易暂停
+                notify_trading_pause(error_msg, {
+                    "failed_cryptos": failed_cryptos,
+                    "total_cryptos": len(self.SUPPORTED_CRYPTOS),
+                    "successful_cryptos": list(analyses.keys()),
+                    "current_date": current_date,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+                
+                raise RuntimeError(error_msg)
+            
+            # 检查是否所有币种分析都成功
+            if len(analyses) != len(self.SUPPORTED_CRYPTOS):
+                missing_cryptos = set(self.SUPPORTED_CRYPTOS) - set(analyses.keys())
+                error_msg = f"❌ CRITICAL: 部分币种分析生成失败: {', '.join(missing_cryptos)}。为确保数据完整性，程序已暂停。"
+                self.logger.error(error_msg)
+                
+                notify_trading_pause(error_msg, {
+                    "missing_cryptos": list(missing_cryptos),
+                    "total_cryptos": len(self.SUPPORTED_CRYPTOS),
+                    "successful_cryptos": list(analyses.keys()),
+                    "current_date": current_date,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+                
+                raise RuntimeError(error_msg)
+            
+            # 所有币种分析成功，继续后续流程
+            self.logger.info(f"✅ 所有 {len(analyses)} 个币种分析生成成功")
+            
+            # 合并分析并保存
+            combined_content = self.combine_analyses(analyses, current_date)
+            filepath = self.save_article(combined_content, current_date)
+            
+            self.logger.info(f"🎉 加密货币合约日报生成完成: {filepath}")
+            self.logger.info(f"成功分析币种: {list(analyses.keys())}")
+            return True
+            
+        except RuntimeError:
+            # 重新抛出RuntimeError，让上层处理
+            raise
+        except Exception as e:
+            error_msg = f"分析流程执行失败: {e}"
+            self.logger.error(error_msg)
+            
+            # 通知用户
+            notify_trading_pause(error_msg, {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            raise RuntimeError(error_msg)
+        
+        try:
+            # 使用北京时间 (UTC+8)
+            beijing_tz = timezone(timedelta(hours=8))
+            current_date = datetime.now(beijing_tz).strftime('%Y-%m-%d')
+            self.logger.info(f"开始执行 {current_date} 加密货币合约分析")
+            
+            # 为每个币种生成分析
+            analyses = {}
+            failed_cryptos = []
+            
+            for crypto in self.SUPPORTED_CRYPTOS:
+                try:
+                    analysis = self.generate_analysis_for_crypto(crypto, current_date)
+                    analyses[crypto] = analysis
+                    self.logger.info(f"✅ {crypto} 分析生成成功")
+                except RuntimeError as e:
+                    # 实时数据失败，记录失败的币种
+                    failed_cryptos.append(crypto)
+                    self.logger.error(f"❌ {crypto} 分析生成失败: {e}")
+                    continue
+                except Exception as e:
+                    # 其他错误，也记录为失败
+                    failed_cryptos.append(crypto)
+                    self.logger.error(f"❌ {crypto} 分析生成失败: {e}")
+                    continue
                     
             # 检查是否至少有一个分析成功
             if not analyses:

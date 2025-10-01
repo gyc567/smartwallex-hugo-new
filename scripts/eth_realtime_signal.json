@@ -1,0 +1,36 @@
+{
+  "symbol": "ETH/USDT",
+  "current_price": "$4,137.91",
+  "price_source": "ai_realtime",
+  "timestamp": "2025-10-01 06:09:12 UTC",
+  "data_source": "Bitget",
+  "ai_analysis": "```\n合约策略分析\n\n代币：ETH\n日期：2025-10-01\n\nMCP阶段与理由：中性：RSI 49（中性），MACD接近零轴，成交量-2%\n\n方向：持仓观望\n\n入场价：无（理由：MCP显示中性，缺乏明确趋势）\n\n止损价：无（风险计算：无）\n\n止盈价：无（目标：无）\n\n潜在风险：市场波动加剧或政策变动\n```",
+  "market_data": {
+    "symbol": "ETH/USDT",
+    "current_price": 4137.91,
+    "high_24h": 4207.56,
+    "low_24h": 4092.08,
+    "volume_24h": 304011.8232,
+    "price_change_24h": -7.550000000000182,
+    "price_change_percent_24h": -0.18212695334173246,
+    "data_source": "Bitget",
+    "last_update": "2025-10-01T06:09:08.122907+00:00",
+    "timestamp": "2025-10-01T06:09:08.122954+00:00"
+  },
+  "mcp_analysis": "中性：RSI 49（中性），MACD接近零轴，成交量-2%",
+  "signal": "HOLD",
+  "risk_warning": "市场波动加剧或政策变动",
+  "entry_price": "$4,137.91",
+  "stop_loss": "$4,262.05",
+  "take_profit": "$3,827.56",
+  "confidence": "75%",
+  "timeframe": "4h",
+  "risk_reward_ratio": "1:2.5",
+  "market_condition": "AI Analyzed",
+  "indicators": {
+    "rsi": "AI Generated",
+    "macd": "AI Generated",
+    "volume": "Real-time Data",
+    "moving_averages": "AI Analysis"
+  }
+}

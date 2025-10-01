@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Trading Signal Generator
-Generates professional cryptocurrency trading signals based on market analysis
+Generates professional cryptocurrency trading signals based on real-time market data from Bitget
 """
 
 import json
@@ -9,6 +9,14 @@ import random
 import datetime
 from typing import List, Dict, Any, Optional
 import logging
+import sys
+from pathlib import Path
+
+# 添加scripts目录到Python路径
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+
+from bitget_client import BitgetClient, BitgetPriceData
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +27,9 @@ class TradingSignalGenerator:
         self.symbols = ["BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "BCH/USDT"]
         self.signals = ["BUY", "SELL", "HOLD"]
         self.timeframes = ["1h", "4h", "1d"]
+        
+        # 初始化Bitget客户端用于实时数据
+        self.bitget_client = BitgetClient()
         
         # Realistic price ranges (approximate current market prices)
         self.price_ranges = {
@@ -51,9 +62,53 @@ class TradingSignalGenerator:
             
         return signals
     
+    def _get_realtime_price(self, symbol: str) -> float:
+        """从Bitget获取实时价格 - 严格要求实时数据
+        
+        Args:
+            symbol: 交易对符号 (如 'BTC/USDT')
+            
+        Returns:
+            当前价格
+            
+        Raises:
+            RuntimeError: 当Bitget数据源失败时抛出
+        """
+        try:
+            # 提取基础币种符号 (去掉 '/USDT')
+            base_symbol = symbol.replace('/USDT', '')
+            
+            logger.info(f"正在从Bitget获取 {symbol} 实时价格数据...")
+            
+            # 从Bitget获取实时价格
+            ticker_data = self.bitget_client.get_ticker(base_symbol)
+            
+            if ticker_data:
+                logger.info(f"✅ 成功获取 {symbol} 实时价格: ${ticker_data.price:,.2f}")
+                return ticker_data.price
+            else:
+                # Bitget数据源失败，立即报错
+                error_msg = f"❌ CRITICAL: Bitget实时数据源失败，无法获取 {symbol} 价格数据。交易程序已暂停。"
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+                
+        except Exception as e:
+            error_msg = f"❌ CRITICAL: 获取 {symbol} 实时价格数据失败: {e}。交易程序已暂停。"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+    
     def _generate_single_signal(self, symbol: str) -> Dict[str, Any]:
-        """Generate a single trading signal"""
-        current_price = self._generate_current_price(symbol)
+        """Generate a single trading signal - 严格要求实时数据"""
+        # 严格要求获取实时价格，失败时报错
+        current_price = self._get_realtime_price(symbol)
+        price_source = "realtime"
+        
+        # 验证价格合理性
+        if current_price <= 0:
+            error_msg = f"❌ CRITICAL: {symbol} 实时价格数据异常: ${current_price:,.2f}。交易程序已暂停。"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+            
         signal_type = random.choice(self.signals)
         
         # Generate signal-specific parameters
@@ -85,7 +140,9 @@ class TradingSignalGenerator:
             "indicators": self._generate_indicators(signal_type),
             "risk_reward_ratio": self._calculate_risk_reward(entry_price, stop_loss, take_profit, signal_type),
             "timeframe": random.choice(self.timeframes),
-            "market_condition": self._generate_market_condition()
+            "market_condition": self._generate_market_condition(),
+            "price_source": price_source,  # 新增：价格数据来源
+            "current_price": f"${current_price:,.{decimals}f}"  # 新增：当前市场价格
         }
         
         return signal
@@ -245,12 +302,14 @@ def format_pretty(data: Dict[str, Any]) -> str:
         lines.append(f"Signal #{i}")
         lines.append(f"  Symbol: {signal['symbol']}")
         lines.append(f"  Signal: {signal['signal']}")
+        lines.append(f"  Current Price: {signal['current_price']}")
         lines.append(f"  Entry: {signal['entry_price']}")
         lines.append(f"  Stop Loss: {signal['stop_loss']}")
         lines.append(f"  Take Profit: {signal['take_profit']}")
         lines.append(f"  Confidence: {signal['confidence']}")
         lines.append(f"  Risk/Reward: {signal['risk_reward_ratio']}")
         lines.append(f"  Timeframe: {signal['timeframe']}")
+        lines.append(f"  Price Source: {signal['price_source']}")
         lines.append("")
     
     return "\n".join(lines)

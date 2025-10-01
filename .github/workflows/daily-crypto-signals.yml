@@ -87,15 +87,18 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_ACTIONS: true
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
       run: |
-        echo "🚀 开始生成加密货币交易信号..."
+        echo "🚀 开始生成AI驱动的加密货币交易信号..."
         cd ${{ github.workspace }}
         
-        # 使用专业的交易信号生成器
-        python scripts/trading_signal_generator.py \
+        # 使用新的AI交易信号生成器包装器
+        python scripts/trading_signal_generator_wrapper.py \
           --count 3 \
           --output signals.json \
-          --include-summary
+          --include-summary \
+          --use-ai
         
         if [ $? -eq 0 ]; then
           echo "✅ 交易信号生成完成"
@@ -237,15 +240,17 @@ jobs:
     - name: Create summary
       if: always()
       run: |
-        echo "## 📊 Daily Crypto Trading Signals Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## 🤖 AI Daily Crypto Trading Signals Summary" >> $GITHUB_STEP_SUMMARY
         echo "- **Date**: $(date +%Y-%m-%d)" >> $GITHUB_STEP_SUMMARY
         echo "- **Time**: $(date -u +"%H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
         echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Analysis Type**: AI Expert Analysis" >> $GITHUB_STEP_SUMMARY
+        echo "- **Data Source**: Bitget + AI Model" >> $GITHUB_STEP_SUMMARY
         
         if [ "${{ steps.signals.outputs.signals_generated }}" == "true" ]; then
-          echo "- **Signals Generated**: ${{ steps.signals.outputs.signals_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **AI Signals Generated**: ${{ steps.signals.outputs.signals_count }}" >> $GITHUB_STEP_SUMMARY
         else
-          echo "- **Signals Generated**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
+          echo "- **AI Signals Generated**: Failed or skipped" >> $GITHUB_STEP_SUMMARY
         fi
         
         if [ "${{ steps.telegram_test.outputs.telegram_connected }}" == "true" ]; then

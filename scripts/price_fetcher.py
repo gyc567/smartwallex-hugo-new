@@ -22,6 +22,8 @@ script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
 
 from crypto_swap_config import SUPPORTED_CRYPTOS
+from bitget_client import BitgetClient, BitgetPriceData
+from notification_service import notify_realtime_data_failure, notify_trading_pause
 
 
 @dataclass
@@ -49,20 +51,27 @@ class PriceFetcher:
         
         # 备用数据源列表（按优先级排序）
         self.data_sources = [
-            self._fetch_from_coinmarketcap,
+            self._fetch_from_bitget,  # Bitget作为首选数据源
             self._fetch_from_binance,
             self._fetch_from_coinpaprika,
-            self._fetch_from_coingecko
+            self._fetch_from_coingecko,
+            self._fetch_from_coinmarketcap
         ]
+        
+        # 初始化Bitget客户端
+        self.bitget_client = BitgetClient()
     
     def get_realtime_price(self, symbol: str) -> Optional[PriceData]:
-        """获取实时价格数据
+        """获取实时价格数据 - 严格要求Bitget数据源
         
         Args:
             symbol: 加密货币符号 (如 'BTC')
             
         Returns:
-            PriceData对象，失败时返回None
+            PriceData对象，失败时抛出异常
+            
+        Raises:
+            RuntimeError: 当Bitget数据源失败时抛出
         """
         try:
             # 检查缓存
@@ -71,39 +80,97 @@ class PriceFetcher:
                 self.logger.info(f"从缓存获取 {symbol} 价格数据")
                 return cached_data
             
-            # 尝试各个数据源
-            for source_func in self.data_sources:
-                try:
-                    price_data = source_func(symbol)
-                    if price_data:
-                        # 更新缓存
-                        self._update_cache(symbol, price_data)
-                        self.logger.info(f"成功获取 {symbol} 价格数据: ${price_data.price:,.2f} (来源: {price_data.data_source})")
-                        return price_data
-                except Exception as e:
-                    self.logger.warning(f"数据源 {source_func.__name__} 获取 {symbol} 价格失败: {e}")
-                    continue
+            # 严格要求使用Bitget数据源，失败时报错
+            self.logger.info(f"正在从Bitget获取 {symbol} 实时价格数据...")
+            price_data = self._fetch_from_bitget(symbol)
             
-            self.logger.error(f"所有数据源都无法获取 {symbol} 价格数据")
-            return None
-            
+            if price_data:
+                # 更新缓存
+                self._update_cache(symbol, price_data)
+                self.logger.info(f"成功获取 {symbol} Bitget实时价格数据: ${price_data.price:,.2f}")
+                return price_data
+            else:
+                # Bitget数据源失败，立即报错并通知用户
+                error_msg = f"❌ CRITICAL: Bitget实时数据源失败，无法获取 {symbol} 价格数据。交易程序已暂停。"
+                self.logger.error(error_msg)
+                
+                # 通知用户
+                notify_realtime_data_failure(symbol, error_msg, {
+                    "data_source": "Bitget",
+                    "function": "get_realtime_price",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+                
+                raise RuntimeError(error_msg)
+                
         except Exception as e:
-            self.logger.error(f"获取 {symbol} 价格数据时发生错误: {e}")
-            return None
+            error_msg = f"❌ CRITICAL: 获取 {symbol} 实时价格数据失败: {e}。交易程序已暂停。"
+            self.logger.error(error_msg)
+            
+            # 通知用户
+            notify_realtime_data_failure(symbol, str(e), {
+                "data_source": "Bitget",
+                "function": "get_realtime_price",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "original_error": str(e)
+            })
+            
+            raise RuntimeError(error_msg)
     
     def get_all_prices(self) -> Dict[str, PriceData]:
-        """获取所有支持的加密货币价格
+        """获取所有支持的加密货币价格 - 严格要求Bitget数据源
         
         Returns:
             所有币种的价格数据字典
+            
+        Raises:
+            RuntimeError: 当任何币种的Bitget数据源失败时抛出
         """
         prices = {}
+        failed_symbols = []
+        
         for symbol in SUPPORTED_CRYPTOS.keys():
-            price_data = self.get_realtime_price(symbol)
-            if price_data:
-                prices[symbol] = price_data
-            else:
-                self.logger.warning(f"无法获取 {symbol} 价格数据")
+            try:
+                price_data = self.get_realtime_price(symbol)
+                if price_data:
+                    prices[symbol] = price_data
+                else:
+                    # 这种情况不应该发生，因为get_realtime_price会抛出异常
+                    failed_symbols.append(symbol)
+            except RuntimeError as e:
+                # Bitget数据源失败，记录失败的币种
+                failed_symbols.append(symbol)
+                self.logger.error(f"获取 {symbol} 价格失败: {e}")
+                continue
+        
+        # 如果有任何币种失败，报错并暂停交易
+        if failed_symbols:
+            error_msg = f"❌ CRITICAL: 以下币种Bitget实时数据获取失败: {', '.join(failed_symbols)}。为确保交易安全，程序已暂停。"
+            self.logger.error(error_msg)
+            
+            # 通知用户交易暂停
+            notify_trading_pause(error_msg, {
+                "failed_symbols": failed_symbols,
+                "total_symbols": len(SUPPORTED_CRYPTOS.keys()),
+                "success_symbols": list(prices.keys()),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            raise RuntimeError(error_msg)
+        
+        if not prices:
+            error_msg = "❌ CRITICAL: 无法获取任何币种的实时价格数据。交易程序已暂停。"
+            self.logger.error(error_msg)
+            
+            # 通知用户交易暂停
+            notify_trading_pause(error_msg, {
+                "failed_symbols": list(SUPPORTED_CRYPTOS.keys()),
+                "total_symbols": len(SUPPORTED_CRYPTOS.keys()),
+                "success_symbols": [],
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+            raise RuntimeError(error_msg)
         
         return prices
     
@@ -160,6 +227,32 @@ class PriceFetcher:
             
         except Exception as e:
             self.logger.warning(f"CoinMarketCap获取 {symbol} 价格失败: {e}")
+            return None
+    
+    def _fetch_from_bitget(self, symbol: str) -> Optional[PriceData]:
+        """从Bitget获取价格数据"""
+        try:
+            # 使用Bitget客户端获取数据
+            bitget_data = self.bitget_client.get_ticker(symbol)
+            
+            if bitget_data:
+                # 转换数据格式
+                return PriceData(
+                    symbol=bitget_data.symbol,
+                    price=bitget_data.price,
+                    price_change_24h=bitget_data.price_change_24h,
+                    price_change_percent_24h=bitget_data.price_change_percent_24h,
+                    high_24h=bitget_data.high_24h,
+                    low_24h=bitget_data.low_24h,
+                    volume_24h=bitget_data.volume_24h,
+                    last_update=bitget_data.last_update,
+                    data_source="Bitget"
+                )
+            
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"Bitget获取 {symbol} 价格失败: {e}")
             return None
     
     def _fetch_from_binance(self, symbol: str) -> Optional[PriceData]:

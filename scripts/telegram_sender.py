@@ -92,18 +92,24 @@ class TelegramSender:
     def _format_trading_signal(self, data: Dict[str, Any]) -> str:
         """Format trading signal data into Telegram message"""
         try:
-            # 导入中文翻译器
-            from signal_translator import SignalTranslator
-            translator = SignalTranslator()
+            # 优先使用新的专业合约策略分析格式
+            from professional_chinese_formatter import ProfessionalChineseFormatter
+            formatter = ProfessionalChineseFormatter()
             
-            # 使用中文翻译格式
-            return translator.format_professional_chinese(data)
+            # 使用专业合约策略分析格式
+            return formatter.format_contract_analysis(data)
             
         except ImportError:
-            logger.warning("Chinese translator not available, falling back to English format")
-            return self._format_english_signal(data)
+            logger.warning("Professional formatter not available, falling back to simple format")
+            try:
+                from signal_translator import SignalTranslator
+                translator = SignalTranslator()
+                return translator.format_professional_chinese(data)
+            except ImportError:
+                logger.warning("Chinese translator not available, falling back to English format")
+                return self._format_english_signal(data)
         except Exception as e:
-            logger.error(f"Error using Chinese translator: {e}, falling back to English format")
+            logger.error(f"Error using professional formatter: {e}, falling back to English format")
             return self._format_english_signal(data)
     
     def _format_english_signal(self, data: Dict[str, Any]) -> str:
