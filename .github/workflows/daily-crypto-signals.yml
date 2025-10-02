@@ -135,12 +135,19 @@ jobs:
             with open('signals.json', 'r') as f:
                 data = json.load(f)
             
+            # 防御性编程：安全获取字段
+            market_summary = data.get('market_summary', {})
+            date = market_summary.get('date', 'Unknown')
+            time = market_summary.get('time', 'Unknown')
+            market_sentiment = market_summary.get('market_sentiment', 'Neutral')
+            signals_count = len(data.get('signals', []))
+            
             summary = f"""📊 <b>SmartWallex Daily Trading Signals</b>
         
-        🗓️ <b>Date:</b> {data['market_summary']['date']}
-        ⏰ <b>Time:</b> {data['market_summary']['time']}
-        📈 <b>Signals Generated:</b> {len(data['signals'])}
-        🎯 <b>Market Sentiment:</b> {data['market_summary']['market_sentiment']}
+        🗓️ <b>Date:</b> {date}
+        ⏰ <b>Time:</b> {time}
+        📈 <b>Signals Generated:</b> {signals_count}
+        🎯 <b>Market Sentiment:</b> {market_sentiment}
         🔔 <i>Individual signals below... </i>"""
             
             success = sender.send_message(summary)
@@ -149,7 +156,7 @@ jobs:
             
             # 发送每个信号
             signals_sent = 0
-            for signal in data['signals']:
+            for signal in data.get('signals', []):
                 if sender.send_trading_signal(signal):
                     signals_sent += 1
             
@@ -229,12 +236,92 @@ jobs:
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         
+        # 防御性 Git 操作：同步远程更改并处理冲突
+        echo "🔄 同步远程更改..."
+        git fetch origin main
+        
+        # 如果本地落后，先 rebase
+        if ! git diff --quiet HEAD origin/main; then
+          echo "📥 检测到远程更改，正在同步..."
+          git rebase origin/main || {
+            echo "⚠️  Rebase 冲突，尝试 reset 并重新应用更改"
+            git rebase --abort
+            git reset --hard origin/main
+            
+            # 重新保存信号历史（防止数据丢失）
+            echo "🔄 重新应用信号历史更改..."
+            python -c "
+        import json
+        import datetime
+        
+        # 读取现有历史
+        try:
+          with open('data/trading_signals.json', 'r') as f:
+            history = json.load(f)
+        except:
+          history = []
+        
+        # 读取新信号
+        with open('signals.json', 'r') as f:
+          signals_data = json.load(f)
+        
+        # 获取信号列表
+        new_signals = signals_data.get('signals', [])
+        
+        # 添加时间戳和批次信息
+        batch_id = datetime.datetime.utcnow().isoformat()
+        for signal in new_signals:
+          signal['batch_id'] = batch_id
+          signal['created_at'] = datetime.datetime.utcnow().isoformat()
+          history.append(signal)
+        
+        # 保持最近1000条记录
+        history = history[-1000:]
+        
+        # 保存
+        with open('data/trading_signals.json', 'w') as f:
+          json.dump(history, f, indent=2)
+        
+        print(f'🔄 重新保存 {len(new_signals)} 个信号到历史记录')
+        "
+          }
+        fi
+        
         git add data/trading_signals.json
         if ! git diff --staged --quiet; then
-          git commit -m "🤖 Auto: Trading signals $(date +%Y-%m-%d) - ${{ steps.signals.outputs.signals_count }} signals"
-          git push
+          # 带重试的推送机制
+          RETRY_COUNT=0
+          MAX_RETRIES=3
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "📤 尝试推送 (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)..."
+            
+            git commit -m "🤖 Auto: Trading signals $(date +%Y-%m-%d) - ${{ steps.signals.outputs.signals_count }} signals" || true
+            
+            if git push; then
+              echo "✅ 推送成功！"
+              break
+            else
+              echo "❌ 推送失败，同步远程更改..."
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                git fetch origin main
+                git rebase origin/main || {
+                  echo "⚠️  Rebase 失败，reset 并重试..."
+                  git rebase --abort
+                  git reset --soft origin/main
+                  git add data/trading_signals.json
+                }
+                sleep 2
+              else
+                echo "💥 达到最大重试次数，推送失败"
+                exit 1
+              fi
+            fi
+          done
         else
-          echo "No changes to commit"
+          echo "📝 没有更改需要提交"
         fi
 
     - name: Create summary

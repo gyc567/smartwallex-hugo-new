@@ -172,16 +172,29 @@ class TradingSignalGeneratorWrapper:
             市场摘要字典
         """
         if hasattr(self.generator, 'generate_market_summary'):
-            return self.generator.generate_market_summary()
+            summary = self.generator.generate_market_summary()
+            # 确保必需字段存在
+            if 'market_sentiment' not in summary:
+                summary['market_sentiment'] = 'Neutral'
+            return summary
         else:
-            # 默认市场摘要
+            # 默认市场摘要，包含所有必需字段
             from datetime import datetime, timezone
             return {
                 "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                 "time": datetime.now(timezone.utc).strftime("%H:%M:%S UTC"),
+                "market_sentiment": "Neutral",  # 必需字段
+                "volatility": "Medium",
+                "dominant_trend": "Sideways",
                 "generator_type": "AI" if self.use_ai else "Traditional",
                 "data_source": "Bitget",
-                "analysis_method": "AI Expert Analysis" if self.use_ai else "Technical Analysis"
+                "analysis_method": "AI Expert Analysis" if self.use_ai else "Technical Analysis",
+                "key_levels": {
+                    "btc_support": "Real-time",
+                    "btc_resistance": "Real-time",
+                    "eth_support": "Real-time", 
+                    "eth_resistance": "Real-time"
+                }
             }
 
 
