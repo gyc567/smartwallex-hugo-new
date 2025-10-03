@@ -147,8 +147,7 @@ jobs:
         🗓️ <b>Date:</b> {date}
         ⏰ <b>Time:</b> {time}
         📈 <b>Signals Generated:</b> {signals_count}
-        🎯 <b>Market Sentiment:</b> {market_sentiment}
-        🔔 <i>Individual signals below... </i>"""
+        🎯 <b>Market Sentiment:</b> {market_sentiment}"""
             
             success = sender.send_message(summary)
             if not success:

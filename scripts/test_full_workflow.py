@@ -99,8 +99,7 @@ def main():
 🗓️ <b>Date:</b> {data['market_summary']['date']}
 ⏰ <b>Time:</b> {data['market_summary']['time']}
 📈 <b>Signals Generated:</b> {len(data['signals'])}
-🎯 <b>Market Sentiment:</b> {data['market_summary']['market_sentiment']}
-🔔 <i>Individual signals below... </i>"""
+🎯 <b>Market Sentiment:</b> {data['market_summary']['market_sentiment']}"""
     
     success = sender.send_message(summary)
     if not success:
