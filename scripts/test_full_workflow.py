@@ -90,22 +90,11 @@ from telegram_sender import TelegramSender
 def main():
     sender = TelegramSender(sys.argv[1], sys.argv[2])
     
-    # 发送每日汇总
+    # 读取信号数据
     with open('signals.json', 'r') as f:
         data = json.load(f)
     
-    summary = f"""📊 <b>SmartWallex Daily Trading Signals</b>
-
-🗓️ <b>Date:</b> {data['market_summary']['date']}
-⏰ <b>Time:</b> {data['market_summary']['time']}
-📈 <b>Signals Generated:</b> {len(data['signals'])}
-🎯 <b>Market Sentiment:</b> {data['market_summary']['market_sentiment']}"""
-    
-    success = sender.send_message(summary)
-    if not success:
-        return False
-    
-    # 发送每个信号
+    # 直接发送每个信号，不发送汇总统计
     signals_sent = 0
     for signal in data['signals']:
         signal_msg = f"""📈 <b>{signal['signal']} Signal: {signal['symbol']}</b>

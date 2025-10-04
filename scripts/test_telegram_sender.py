@@ -121,9 +121,9 @@ class TestTelegramSender(unittest.TestCase):
             call_args = mock_send.call_args
             message = call_args[0][0]
             self.assertIn("BTC/USDT", message)
-            self.assertIn("BUY", message)
+            self.assertIn("做多", message)  # Chinese translation of BUY
             self.assertIn("45000", message)
-            self.assertIn("Risk Warning", message)
+            self.assertIn("风险提示", message)  # Chinese risk warning
             
     def test_send_trading_signal_empty_data(self):
         """Test sending empty trading signal data"""
@@ -150,7 +150,7 @@ class TestTelegramSender(unittest.TestCase):
             call_args = mock_send.call_args
             message = call_args[0][0]
             self.assertIn("ETH/USDT", message)
-            self.assertIn("SELL", message)
+            self.assertIn("做空", message)  # Chinese translation of SELL
             self.assertIn("N/A", message)  # Missing fields should show N/A
             
     def test_send_trading_signal_format_error(self):
@@ -175,15 +175,13 @@ class TestTelegramSender(unittest.TestCase):
         
         message = self.sender._format_trading_signal(data)
         
-        self.assertIn("SmartWallex Trading Signal", message)
-        self.assertIn("BTC/USDT", message)
-        self.assertIn("BUY", message)
+        self.assertIn("BTC/USDT永续合约信号", message)
+        self.assertIn("做多", message)  # Chinese translation of BUY
         self.assertIn("45000.5", message)
         self.assertIn("44000.0", message)
         self.assertIn("47000.0", message)
         self.assertIn("85%", message)
-        self.assertIn("2024-01-01 12:00:00 UTC", message)
-        self.assertIn("Risk Warning", message)
+        self.assertIn("风险提示", message)  # Chinese risk warning
         
     def test_format_trading_signal_partial(self):
         """Test partial trading signal formatting"""
@@ -192,7 +190,7 @@ class TestTelegramSender(unittest.TestCase):
         message = self.sender._format_trading_signal(data)
         
         self.assertIn("ETH/USDT", message)
-        self.assertIn("SELL", message)
+        self.assertIn("做空", message)  # Chinese translation of SELL
         self.assertIn("N/A", message)  # Missing fields
         self.assertNotIn("timestamp", message)  # No timestamp field
         
@@ -203,7 +201,7 @@ class TestTelegramSender(unittest.TestCase):
         message = self.sender._format_trading_signal(data)
         
         self.assertIn("Unknown", message)  # Default values
-        self.assertIn("SmartWallex Trading Signal", message)
+        self.assertIn("永续合约信号", message)  # Chinese signal format
         
     def test_test_connection_success(self):
         """Test successful connection test"""

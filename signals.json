@@ -1,79 +1,79 @@
 {
   "signals": [
     {
-      "symbol": "SOL/USDT",
-      "signal": "BUY",
-      "entry_price": "$231.9",
-      "stop_loss": "$226.8",
-      "take_profit": "$242.8",
-      "confidence": "78%",
-      "timestamp": "2025-10-03 04:58:18 UTC",
+      "symbol": "ETH/USDT",
+      "signal": "HOLD",
+      "entry_price": "$4,469",
+      "stop_loss": "$4,261",
+      "take_profit": "$4,704",
+      "confidence": "69%",
+      "timestamp": "2025-10-04 02:19:38 UTC",
       "indicators": {
-        "rsi": "25",
-        "macd": "Bullish crossover",
-        "volume": "Normal",
-        "moving_averages": "Golden cross"
+        "rsi": "41",
+        "macd": "Consolidating",
+        "volume": "High",
+        "moving_averages": "MA lines converging"
       },
-      "risk_reward_ratio": "1:2.1",
+      "risk_reward_ratio": "1:1.1",
       "timeframe": "1d",
-      "market_condition": "Support test",
+      "market_condition": "Volatile",
       "price_source": "realtime",
-      "current_price": "$231.9"
+      "current_price": "$4,469"
     },
     {
       "symbol": "BNB/USDT",
-      "signal": "HOLD",
-      "entry_price": "$1,098",
-      "stop_loss": "$1,060",
-      "take_profit": "$1,157",
-      "confidence": "62%",
-      "timestamp": "2025-10-03 04:58:18 UTC",
+      "signal": "BUY",
+      "entry_price": "$1,168",
+      "stop_loss": "$1,141",
+      "take_profit": "$1,214",
+      "confidence": "85%",
+      "timestamp": "2025-10-04 02:19:38 UTC",
       "indicators": {
-        "rsi": "46",
-        "macd": "Neutral",
-        "volume": "High",
-        "moving_averages": "Price near MA50"
+        "rsi": "29",
+        "macd": "Positive divergence",
+        "volume": "Above average",
+        "moving_averages": "Price above MA50"
       },
-      "risk_reward_ratio": "1:1.6",
-      "timeframe": "1h",
-      "market_condition": "Consolidating",
+      "risk_reward_ratio": "1:1.8",
+      "timeframe": "4h",
+      "market_condition": "Support test",
       "price_source": "realtime",
-      "current_price": "$1,098"
+      "current_price": "$1,168"
     },
     {
-      "symbol": "ETH/USDT",
-      "signal": "BUY",
-      "entry_price": "$4,493",
-      "stop_loss": "$4,379",
-      "take_profit": "$4,662",
-      "confidence": "74%",
-      "timestamp": "2025-10-03 04:58:19 UTC",
+      "symbol": "BTC/USDT",
+      "signal": "SELL",
+      "entry_price": "$121,754",
+      "stop_loss": "$123,134",
+      "take_profit": "$119,162",
+      "confidence": "85%",
+      "timestamp": "2025-10-04 02:19:38 UTC",
       "indicators": {
-        "rsi": "45",
-        "macd": "Positive divergence",
-        "volume": "High",
-        "moving_averages": "MA20 above MA50"
+        "rsi": "74",
+        "macd": "Signal line crossover",
+        "volume": "Above average",
+        "moving_averages": "MA20 below MA50"
       },
-      "risk_reward_ratio": "1:1.5",
-      "timeframe": "4h",
-      "market_condition": "Consolidating",
+      "risk_reward_ratio": "1:1.9",
+      "timeframe": "1d",
+      "market_condition": "Sideways",
       "price_source": "realtime",
-      "current_price": "$4,493"
+      "current_price": "$121,754"
     }
   ],
-  "generated_at": "2025-10-03T04:58:19.073114",
+  "generated_at": "2025-10-04T02:19:38.523443",
   "total_signals": 3,
   "market_summary": {
-    "date": "2025-10-03",
-    "time": "04:58:19 UTC",
-    "market_sentiment": "Bullish",
-    "volatility": "High",
-    "dominant_trend": "Up",
+    "date": "2025-10-04",
+    "time": "02:19:38 UTC",
+    "market_sentiment": "Neutral",
+    "volatility": "Medium",
+    "dominant_trend": "Down",
     "key_levels": {
-      "btc_support": "$41,020",
-      "btc_resistance": "$46,414",
-      "eth_support": "$2,694",
-      "eth_resistance": "$3,134"
+      "btc_support": "$40,147",
+      "btc_resistance": "$47,304",
+      "eth_support": "$2,587",
+      "eth_resistance": "$3,157"
     }
   }
 }

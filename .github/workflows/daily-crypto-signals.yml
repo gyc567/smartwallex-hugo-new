@@ -131,29 +131,11 @@ jobs:
         def main():
             sender = TelegramSender(sys.argv[1], sys.argv[2])
             
-            # 发送每日汇总
+            # 读取信号数据
             with open('signals.json', 'r') as f:
                 data = json.load(f)
             
-            # 防御性编程：安全获取字段
-            market_summary = data.get('market_summary', {})
-            date = market_summary.get('date', 'Unknown')
-            time = market_summary.get('time', 'Unknown')
-            market_sentiment = market_summary.get('market_sentiment', 'Neutral')
-            signals_count = len(data.get('signals', []))
-            
-            summary = f"""📊 <b>SmartWallex Daily Trading Signals</b>
-        
-        🗓️ <b>Date:</b> {date}
-        ⏰ <b>Time:</b> {time}
-        📈 <b>Signals Generated:</b> {signals_count}
-        🎯 <b>Market Sentiment:</b> {market_sentiment}"""
-            
-            success = sender.send_message(summary)
-            if not success:
-                return False
-            
-            # 发送每个信号
+            # 直接发送每个信号，不发送汇总统计
             signals_sent = 0
             for signal in data.get('signals', []):
                 if sender.send_trading_signal(signal):
